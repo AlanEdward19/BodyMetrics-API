@@ -12,6 +12,8 @@ using BodyMetricsApi.Features.Sports.Create;
 using BodyMetricsApi.Features.Sports.Delete;
 using BodyMetricsApi.Features.Sports.GetAll;
 using BodyMetricsApi.Features.Sports.GetById;
+using BodyMetricsApi.Features.Sports.Shared.Interfaces;
+using BodyMetricsApi.Features.Sports.Shared.Persistence;
 using BodyMetricsApi.Features.Sports.Update;
 using BodyMetricsApi.Infrastructure.Configuration;
 using BodyMetricsApi.Infrastructure.Persistence;

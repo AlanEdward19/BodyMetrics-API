@@ -9,6 +9,7 @@ using BodyMetricsApi.Features.Athletes.Shared.ViewModels;
 using BodyMetricsApi.Features.Athletes.Update;
 using BodyMetricsApi.Features.Sports;
 using BodyMetricsApi.Features.Sports.Create;
+using BodyMetricsApi.Features.Sports.Shared.ViewModels;
 using BodyMetricsApi.Tests.TestInfrastructure;
 
 namespace BodyMetricsApi.Tests.Athletes;

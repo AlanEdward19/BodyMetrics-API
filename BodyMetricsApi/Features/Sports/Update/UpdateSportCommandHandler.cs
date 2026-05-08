@@ -1,4 +1,6 @@
-﻿using BodyMetricsApi.Shared.Results;
+using BodyMetricsApi.Features.Sports.Shared.Interfaces;
+using BodyMetricsApi.Features.Sports.Shared.ViewModels;
+using BodyMetricsApi.Shared.Results;
 using BodyMetricsApi.Shared.Validation;
 using FluentValidation;
 
@@ -25,7 +27,4 @@ public sealed class UpdateSportCommandHandler(ISportRepository repository, IVali
         return OperationResult<SportResponse>.Success(sport.ToResponse());
     }
 }
-
-
-
 

@@ -1,7 +1,8 @@
-﻿using BodyMetricsApi.Infrastructure.Persistence;
+using BodyMetricsApi.Features.Sports.Shared.Interfaces;
+using BodyMetricsApi.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-namespace BodyMetricsApi.Features.Sports;
+namespace BodyMetricsApi.Features.Sports.Shared.Persistence;
 
 public sealed class EfSportRepository(BodyMetricsDbContext dbContext) : ISportRepository
 {
@@ -45,6 +46,4 @@ public sealed class EfSportRepository(BodyMetricsDbContext dbContext) : ISportRe
         return true;
     }
 }
-
-
 

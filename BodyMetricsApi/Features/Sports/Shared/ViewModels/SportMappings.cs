@@ -1,4 +1,4 @@
-﻿namespace BodyMetricsApi.Features.Sports;
+namespace BodyMetricsApi.Features.Sports.Shared.ViewModels;
 
 public static class SportMappings
 {
@@ -7,5 +7,4 @@ public static class SportMappings
         return new SportResponse(sport.Id, sport.Name, sport.Sectors, sport.Categories);
     }
 }
-
 

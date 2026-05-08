@@ -1,4 +1,6 @@
-﻿using BodyMetricsApi.Shared.Results;
+using BodyMetricsApi.Features.Sports.Shared.Interfaces;
+using BodyMetricsApi.Features.Sports.Shared.ViewModels;
+using BodyMetricsApi.Shared.Results;
 
 namespace BodyMetricsApi.Features.Sports.GetById;
 
@@ -12,5 +14,4 @@ public sealed class GetSportByIdQueryHandler(ISportRepository repository)
             : OperationResult<SportResponse>.Success(sport.ToResponse());
     }
 }
-
 

@@ -2,6 +2,7 @@
 using System.Net.Http.Json;
 using BodyMetricsApi.Features.Sports;
 using BodyMetricsApi.Features.Sports.Create;
+using BodyMetricsApi.Features.Sports.Shared.ViewModels;
 using BodyMetricsApi.Features.Sports.Update;
 using BodyMetricsApi.Tests.TestInfrastructure;
 

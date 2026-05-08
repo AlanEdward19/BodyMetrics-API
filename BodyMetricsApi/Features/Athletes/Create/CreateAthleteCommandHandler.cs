@@ -2,6 +2,7 @@
 using BodyMetricsApi.Features.Athletes.Shared.ValueObjects;
 using BodyMetricsApi.Features.Athletes.Shared.ViewModels;
 using BodyMetricsApi.Features.Sports;
+using BodyMetricsApi.Features.Sports.Shared.Interfaces;
 using BodyMetricsApi.Infrastructure.Storage;
 using BodyMetricsApi.Shared.Results;
 using BodyMetricsApi.Shared.Validation;

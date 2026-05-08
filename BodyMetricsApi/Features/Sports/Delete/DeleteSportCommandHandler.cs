@@ -1,4 +1,5 @@
-﻿using BodyMetricsApi.Shared.Results;
+using BodyMetricsApi.Features.Sports.Shared.Interfaces;
+using BodyMetricsApi.Shared.Results;
 
 namespace BodyMetricsApi.Features.Sports.Delete;
 
@@ -12,5 +13,4 @@ public sealed class DeleteSportCommandHandler(ISportRepository repository)
             : OperationResult.NotFound($"Sport '{command.Id}' was not found.");
     }
 }
-
 

@@ -2,6 +2,7 @@
 using BodyMetricsApi.Features.Sports.Delete;
 using BodyMetricsApi.Features.Sports.GetAll;
 using BodyMetricsApi.Features.Sports.GetById;
+using BodyMetricsApi.Features.Sports.Shared.ViewModels;
 using BodyMetricsApi.Features.Sports.Update;
 using BodyMetricsApi.Shared.Results;
 using Microsoft.AspNetCore.Mvc;

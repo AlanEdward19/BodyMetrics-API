@@ -1,4 +1,4 @@
-﻿namespace BodyMetricsApi.Features.Sports;
+namespace BodyMetricsApi.Features.Sports.Shared.Interfaces;
 
 public interface ISportRepository
 {

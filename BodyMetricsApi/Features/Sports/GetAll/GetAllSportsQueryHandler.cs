@@ -1,4 +1,7 @@
-﻿namespace BodyMetricsApi.Features.Sports.GetAll;
+using BodyMetricsApi.Features.Sports.Shared.Interfaces;
+using BodyMetricsApi.Features.Sports.Shared.ViewModels;
+
+namespace BodyMetricsApi.Features.Sports.GetAll;
 
 public sealed class GetAllSportsQueryHandler(ISportRepository repository)
 {
@@ -8,5 +11,4 @@ public sealed class GetAllSportsQueryHandler(ISportRepository repository)
         return sports.Select(sport => sport.ToResponse()).ToList();
     }
 }
-
 

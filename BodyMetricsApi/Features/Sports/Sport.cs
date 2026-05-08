@@ -1,5 +1,6 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
+using BodyMetricsApi.Features.Sports.Shared.ViewModels;
 
 namespace BodyMetricsApi.Features.Sports;
 
