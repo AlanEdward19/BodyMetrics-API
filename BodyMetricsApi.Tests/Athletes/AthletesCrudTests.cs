@@ -1,27 +1,39 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
-using BodyMetricsApi.Features.Athletes;
 using BodyMetricsApi.Features.Athletes.Create;
 using BodyMetricsApi.Features.Athletes.PhysicalAssessments.Shared.Commands;
 using BodyMetricsApi.Features.Athletes.Shared.Commands;
 using BodyMetricsApi.Features.Athletes.Shared.Enums;
 using BodyMetricsApi.Features.Athletes.Shared.ViewModels;
 using BodyMetricsApi.Features.Athletes.Update;
-using BodyMetricsApi.Features.Sports;
 using BodyMetricsApi.Features.Sports.Create;
 using BodyMetricsApi.Features.Sports.Shared.ViewModels;
+using BodyMetricsApi.Shared.ViewModels;
 using BodyMetricsApi.Tests.TestInfrastructure;
 
 namespace BodyMetricsApi.Tests.Athletes;
 
 [Collection(MongoCollectionDefinition.Name)]
-public sealed class AthletesCrudTests(MongoContainerFixture mongoFixture)
+public sealed class AthletesCrudTests(MongoContainerFixture mongoFixture, AzuriteContainerFixture azuriteFixture) : IClassFixture<AzuriteContainerFixture>
 {
+    private static readonly HttpClient BlobHttpClient = new();
+
     [Fact]
-    public async Task CreateAthlete_ShouldReturnCreatedAndGeneratePhotoUrl()
+    public async Task AthletesEndpoints_ShouldRequireAuthentication()
     {
-        await using var factory = new TestApplicationFactory(mongoFixture);
+        await using var factory = new TestApplicationFactory(mongoFixture, azuriteFixture);
         using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/athletes?page=1&pageSize=10");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateAthlete_ShouldReturnCreatedAndGenerateBlobUrl()
+    {
+        await using var factory = new TestApplicationFactory(mongoFixture, azuriteFixture);
+        using var client = factory.CreateAuthenticatedClient();
         var sport = await CreateSportAsync(client, factory, "Volleyball");
 
         var request = BuildCreateAthleteCommand(sport.Id, "Adult", "A", includePhoto: true);
@@ -33,7 +45,11 @@ public sealed class AthletesCrudTests(MongoContainerFixture mongoFixture)
         Assert.Equal("Jane Doe", body.FullName);
         Assert.NotNull(body.ProfilePhoto);
         Assert.NotNull(body.ProfilePhoto!.AccessUrl);
-        Assert.StartsWith("https://photos.local/", body.ProfilePhoto.AccessUrl);
+        Assert.StartsWith("http://127.0.0.1:", body.ProfilePhoto.AccessUrl, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("sig=", body.ProfilePhoto.AccessUrl, StringComparison.OrdinalIgnoreCase);
+
+        var blobResponse = await BlobHttpClient.GetAsync(body.ProfilePhoto.AccessUrl);
+        Assert.Equal(HttpStatusCode.OK, blobResponse.StatusCode);
     }
 
     [Theory]
@@ -41,8 +57,8 @@ public sealed class AthletesCrudTests(MongoContainerFixture mongoFixture)
     [InlineData("Adult", "Invalid Category")]
     public async Task CreateAthlete_ShouldRejectInvalidSportOptions(string sector, string category)
     {
-        await using var factory = new TestApplicationFactory(mongoFixture);
-        using var client = factory.CreateClient();
+        await using var factory = new TestApplicationFactory(mongoFixture, azuriteFixture);
+        using var client = factory.CreateAuthenticatedClient();
         var sport = await CreateSportAsync(client, factory, "Handball");
 
         var request = BuildCreateAthleteCommand(sport.Id, sector, category);
@@ -56,8 +72,8 @@ public sealed class AthletesCrudTests(MongoContainerFixture mongoFixture)
     [InlineData(5)]
     public async Task CreateAthlete_ShouldRejectFutureBirthDate(int daysInFuture)
     {
-        await using var factory = new TestApplicationFactory(mongoFixture);
-        using var client = factory.CreateClient();
+        await using var factory = new TestApplicationFactory(mongoFixture, azuriteFixture);
+        using var client = factory.CreateAuthenticatedClient();
         var sport = await CreateSportAsync(client, factory, "Gymnastics");
 
         var request = BuildCreateAthleteCommand(sport.Id, "Adult", "A") with
@@ -71,10 +87,10 @@ public sealed class AthletesCrudTests(MongoContainerFixture mongoFixture)
     }
 
     [Fact]
-    public async Task GetAthleteById_ShouldReturnAssessments()
+    public async Task GetAthleteById_ShouldReturnOwnedAssessments()
     {
-        await using var factory = new TestApplicationFactory(mongoFixture);
-        using var client = factory.CreateClient();
+        await using var factory = new TestApplicationFactory(mongoFixture, azuriteFixture);
+        using var client = factory.CreateAuthenticatedClient("user-a");
         var sport = await CreateSportAsync(client, factory, "Swimming");
         var created = await CreateAthleteAsync(client, factory, sport.Id);
 
@@ -88,10 +104,24 @@ public sealed class AthletesCrudTests(MongoContainerFixture mongoFixture)
     }
 
     [Fact]
+    public async Task GetAthleteById_ShouldReturnNotFoundForAnotherUser()
+    {
+        await using var factory = new TestApplicationFactory(mongoFixture, azuriteFixture);
+        using var ownerClient = factory.CreateAuthenticatedClient("owner-user");
+        using var strangerClient = factory.CreateAuthenticatedClient("stranger-user");
+        var sport = await CreateSportAsync(ownerClient, factory, "Cycling");
+        var created = await CreateAthleteAsync(ownerClient, factory, sport.Id);
+
+        var response = await strangerClient.GetAsync($"/api/athletes/{created.Id}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
     public async Task UpdateAthlete_ShouldReplaceAssessmentsAndAllowPhotoReplacement()
     {
-        await using var factory = new TestApplicationFactory(mongoFixture);
-        using var client = factory.CreateClient();
+        await using var factory = new TestApplicationFactory(mongoFixture, azuriteFixture);
+        using var client = factory.CreateAuthenticatedClient();
         var sport = await CreateSportAsync(client, factory, "Cycling");
         var created = await CreateAthleteAsync(client, factory, sport.Id);
 
@@ -126,10 +156,10 @@ public sealed class AthletesCrudTests(MongoContainerFixture mongoFixture)
     }
 
     [Fact]
-    public async Task DeleteAthlete_ShouldRemoveEntity()
+    public async Task DeleteAthlete_ShouldRemoveOwnedEntity()
     {
-        await using var factory = new TestApplicationFactory(mongoFixture);
-        using var client = factory.CreateClient();
+        await using var factory = new TestApplicationFactory(mongoFixture, azuriteFixture);
+        using var client = factory.CreateAuthenticatedClient();
         var sport = await CreateSportAsync(client, factory, "Boxing");
         var created = await CreateAthleteAsync(client, factory, sport.Id);
 
@@ -141,21 +171,26 @@ public sealed class AthletesCrudTests(MongoContainerFixture mongoFixture)
     }
 
     [Fact]
-    public async Task GetAllAthletes_ShouldReturnAthletesSortedByName()
+    public async Task GetAllAthletes_ShouldReturnOnlyOwnerItemsWithPaginationAndFilters()
     {
-        await using var factory = new TestApplicationFactory(mongoFixture);
-        using var client = factory.CreateClient();
-        var sport = await CreateSportAsync(client, factory, "Track and Field");
+        await using var factory = new TestApplicationFactory(mongoFixture, azuriteFixture);
+        using var ownerClient = factory.CreateAuthenticatedClient("owner-user");
+        using var otherClient = factory.CreateAuthenticatedClient("other-user");
+        var sport = await CreateSportAsync(ownerClient, factory, "Track and Field");
 
-        await CreateAthleteAsync(client, factory, sport.Id, "Zeta Runner");
-        await CreateAthleteAsync(client, factory, sport.Id, "Alpha Runner");
+        await CreateAthleteAsync(ownerClient, factory, sport.Id, "Zeta Runner");
+        await CreateAthleteAsync(ownerClient, factory, sport.Id, "Alpha Runner");
+        await CreateAthleteAsync(otherClient, factory, sport.Id, "Other Runner");
 
-        var response = await client.GetAsync("/api/athletes");
-        var body = await response.Content.ReadFromJsonAsync<List<AthleteViewModel>>(factory.JsonSerializerOptions);
+        var response = await ownerClient.GetAsync($"/api/athletes?page=1&pageSize=1&fullName=Runner&sportId={sport.Id}&sector=Adult&category=A&phase=Competitive");
+        var body = await response.Content.ReadFromJsonAsync<PagedResponseViewModel<AthleteViewModel>>(factory.JsonSerializerOptions);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(body);
-        Assert.Equal(new[] { "Alpha Runner", "Zeta Runner" }, body.Select(item => item.FullName).ToArray());
+        Assert.Equal(2, body.TotalCount);
+        Assert.Equal(2, body.TotalPages);
+        Assert.Single(body.Items);
+        Assert.Equal("Alpha Runner", body.Items[0].FullName);
     }
 
     private static async Task<SportResponse> CreateSportAsync(HttpClient client, TestApplicationFactory factory, string name)

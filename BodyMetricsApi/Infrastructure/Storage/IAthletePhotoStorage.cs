@@ -7,7 +7,3 @@ public interface IAthletePhotoStorage
     Task<Uri?> GetReadUrlAsync(string? blobPath, CancellationToken cancellationToken);
 }
 
-public sealed record AthletePhotoUpload(string FileName, string ContentType, byte[] Content);
-
-public sealed record StoredAthletePhoto(string BlobPath, string FileName, string ContentType, DateTimeOffset UploadedAtUtc);
-

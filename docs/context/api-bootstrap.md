@@ -10,9 +10,13 @@
 - Put MongoDB repositories, JSON/BSON serialization, and blob adapters inside the same project.
 - Keep each HTTP slice explicit with request, validator, handler, and endpoint classes together.
 - Use `DateOnly` for domain dates and serialize as `yyyy-MM-dd`.
+- Keep controller-level OpenAPI metadata explicit with summaries, descriptions, and response status contracts for athlete and sport endpoints.
+- Enable a debug-only CORS policy for the local frontend origin `http://localhost:5173`.
 
 ## Consequences
 - The project stays small and easy to navigate while still isolating feature behavior.
 - Shared infrastructure is available without introducing premature project boundaries.
 - Template files should be removed so the repo reflects the real domain immediately.
+- The generated OpenAPI document now exposes expected success, validation, not-found, and auth responses directly from controller metadata.
+- Local development can call the API from the Vite frontend without changing release behavior or widening production origins.
 

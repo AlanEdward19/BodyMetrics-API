@@ -1,15 +1,27 @@
-﻿namespace BodyMetricsApi.Features.Athletes.Shared.Interfaces;
+﻿using BodyMetricsApi.Features.Athletes.Shared.Enums;
+using BodyMetricsApi.Shared.Dtos;
+
+namespace BodyMetricsApi.Features.Athletes.Shared.Interfaces;
 
 public interface IAthleteRepository
 {
-    Task<IReadOnlyList<Athlete>> GetAllAsync(CancellationToken cancellationToken);
+    Task<PagedResultDto<Athlete>> GetAllAsync(
+        string ownerUserId,
+        int page,
+        int pageSize,
+        string? fullName,
+        string? sportId,
+        string? sector,
+        string? category,
+        Phase? phase,
+        CancellationToken cancellationToken);
 
-    Task<Athlete?> GetByIdAsync(string id, CancellationToken cancellationToken);
+    Task<Athlete?> GetByIdAsync(string id, string ownerUserId, CancellationToken cancellationToken);
 
     Task AddAsync(Athlete athlete, CancellationToken cancellationToken);
 
     Task ReplaceAsync(Athlete athlete, CancellationToken cancellationToken);
 
-    Task<bool> DeleteAsync(string id, CancellationToken cancellationToken);
+    Task<bool> DeleteAsync(string id, string ownerUserId, CancellationToken cancellationToken);
 }
 

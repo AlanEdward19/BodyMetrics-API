@@ -1,8 +1,16 @@
+using BodyMetricsApi.Shared.Dtos;
+
 namespace BodyMetricsApi.Features.Sports.Shared.Interfaces;
 
 public interface ISportRepository
 {
-    Task<IReadOnlyList<Sport>> GetAllAsync(CancellationToken cancellationToken);
+    Task<PagedResultDto<Sport>> GetAllAsync(
+        int page,
+        int pageSize,
+        string? name,
+        string? sector,
+        string? category,
+        CancellationToken cancellationToken);
 
     Task<Sport?> GetByIdAsync(string id, CancellationToken cancellationToken);
 

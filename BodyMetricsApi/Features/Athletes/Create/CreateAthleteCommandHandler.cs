@@ -4,6 +4,7 @@ using BodyMetricsApi.Features.Athletes.Shared.ViewModels;
 using BodyMetricsApi.Features.Sports;
 using BodyMetricsApi.Features.Sports.Shared.Interfaces;
 using BodyMetricsApi.Infrastructure.Storage;
+using BodyMetricsApi.Shared.Authentication;
 using BodyMetricsApi.Shared.Results;
 using BodyMetricsApi.Shared.Validation;
 using FluentValidation;
@@ -14,6 +15,7 @@ public sealed class CreateAthleteCommandHandler(
     IAthleteRepository athleteRepository,
     ISportRepository sportRepository,
     IAthletePhotoStorage photoStorage,
+    ICurrentUserService currentUserService,
     IValidator<CreateAthleteCommand> validator)
 {
     public async Task<OperationResult<AthleteViewModel>> HandleAsync(CreateAthleteCommand command, CancellationToken cancellationToken)
@@ -50,6 +52,7 @@ public sealed class CreateAthleteCommandHandler(
         }
 
         var athlete = Athlete.Create(
+            currentUserService.UserId,
             command.FullName,
             sport,
             command.Sector,

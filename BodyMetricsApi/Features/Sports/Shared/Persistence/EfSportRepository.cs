@@ -1,17 +1,52 @@
 using BodyMetricsApi.Features.Sports.Shared.Interfaces;
 using BodyMetricsApi.Infrastructure.Persistence;
+using BodyMetricsApi.Shared.Dtos;
 using Microsoft.EntityFrameworkCore;
 
 namespace BodyMetricsApi.Features.Sports.Shared.Persistence;
 
 public sealed class EfSportRepository(BodyMetricsDbContext dbContext) : ISportRepository
 {
-    public async Task<IReadOnlyList<Sport>> GetAllAsync(CancellationToken cancellationToken)
+    public async Task<PagedResultDto<Sport>> GetAllAsync(
+        int page,
+        int pageSize,
+        string? name,
+        string? sector,
+        string? category,
+        CancellationToken cancellationToken)
     {
-        return await dbContext.Sports
+        var sports = await dbContext.Sports
             .AsNoTracking()
             .OrderBy(sport => sport.Name)
             .ToListAsync(cancellationToken);
+
+        IEnumerable<Sport> filtered = sports;
+
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            var normalizedName = name.Trim();
+            filtered = filtered.Where(sport => sport.Name.Contains(normalizedName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(sector))
+        {
+            var normalizedSector = sector.Trim();
+            filtered = filtered.Where(sport => sport.SupportsSector(normalizedSector));
+        }
+
+        if (!string.IsNullOrWhiteSpace(category))
+        {
+            var normalizedCategory = category.Trim();
+            filtered = filtered.Where(sport => sport.SupportsCategory(normalizedCategory));
+        }
+
+        var filteredList = filtered.ToList();
+        var pagedItems = filteredList
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return new PagedResultDto<Sport>(pagedItems, filteredList.Count);
     }
 
     public async Task<Sport?> GetByIdAsync(string id, CancellationToken cancellationToken)

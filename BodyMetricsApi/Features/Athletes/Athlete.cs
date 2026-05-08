@@ -15,6 +15,8 @@ public sealed class Athlete
 
     public string FullName { get; private set; } = string.Empty;
 
+    public string OwnerUserId { get; private set; } = string.Empty;
+
     [BsonRepresentation(BsonType.ObjectId)]
     public string SportId { get; private set; } = string.Empty;
 
@@ -44,6 +46,7 @@ public sealed class Athlete
     }
 
     private Athlete(
+        string ownerUserId,
         string fullName,
         Sport sport,
         string sector,
@@ -55,10 +58,12 @@ public sealed class Athlete
         IEnumerable<PhysicalAssessment> physicalAssessments,
         ProfilePhotoReferenceValueObject? profilePhoto)
     {
+        OwnerUserId = NormalizeRequiredText(ownerUserId, nameof(OwnerUserId));
         Update(fullName, sport, sector, phase, category, sex, ethnicity, birthDate, physicalAssessments, profilePhoto);
     }
 
     public static Athlete Create(
+        string ownerUserId,
         string fullName,
         Sport sport,
         string sector,
@@ -70,7 +75,7 @@ public sealed class Athlete
         IEnumerable<PhysicalAssessment> physicalAssessments,
         ProfilePhotoReferenceValueObject? profilePhoto)
     {
-        return new Athlete(fullName, sport, sector, phase, category, sex, ethnicity, birthDate, physicalAssessments, profilePhoto);
+        return new Athlete(ownerUserId, fullName, sport, sector, phase, category, sex, ethnicity, birthDate, physicalAssessments, profilePhoto);
     }
 
     public void Update(

@@ -4,6 +4,7 @@ using BodyMetricsApi.Features.Athletes.Shared.ViewModels;
 using BodyMetricsApi.Features.Sports;
 using BodyMetricsApi.Features.Sports.Shared.Interfaces;
 using BodyMetricsApi.Infrastructure.Storage;
+using BodyMetricsApi.Shared.Authentication;
 using BodyMetricsApi.Shared.Results;
 using BodyMetricsApi.Shared.Validation;
 using FluentValidation;
@@ -14,6 +15,7 @@ public sealed class UpdateAthleteCommandHandler(
     IAthleteRepository athleteRepository,
     ISportRepository sportRepository,
     IAthletePhotoStorage photoStorage,
+    ICurrentUserService currentUserService,
     IValidator<UpdateAthleteCommand> validator)
 {
     public async Task<OperationResult<AthleteViewModel>> HandleAsync(UpdateAthleteCommand command, CancellationToken cancellationToken)
@@ -24,7 +26,7 @@ public sealed class UpdateAthleteCommandHandler(
             return OperationResult<AthleteViewModel>.Validation(validationResult.ToErrorDictionary());
         }
 
-        var athlete = await athleteRepository.GetByIdAsync(command.Id, cancellationToken);
+        var athlete = await athleteRepository.GetByIdAsync(command.Id, currentUserService.UserId, cancellationToken);
         if (athlete is null)
         {
             return OperationResult<AthleteViewModel>.NotFound($"Athlete '{command.Id}' was not found.");

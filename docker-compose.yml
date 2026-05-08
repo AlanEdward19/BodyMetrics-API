@@ -14,7 +14,7 @@
     image: mcr.microsoft.com/azure-storage/azurite:3.35.0
     container_name: bodymetrics-azurite
     restart: unless-stopped
-    command: "azurite-blob --blobHost 0.0.0.0 --location /data"
+    command: "azurite-blob --blobHost 0.0.0.0 --location /data --skipApiVersionCheck"
     ports:
       - "10000:10000"
     volumes:

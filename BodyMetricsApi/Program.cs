@@ -19,17 +19,26 @@ using BodyMetricsApi.Infrastructure.Configuration;
 using BodyMetricsApi.Infrastructure.Persistence;
 using BodyMetricsApi.Infrastructure.Serialization;
 using BodyMetricsApi.Infrastructure.Storage;
+using BodyMetricsApi.Shared.Authentication;
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using MongoDB.EntityFrameworkCore.Extensions;
 
 MongoSerializationBootstrapper.Configure();
+
+#if DEBUG
+const string LocalDebugCorsPolicy = "LocalDebugCors";
+#endif
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<MongoDbOptions>(builder.Configuration.GetSection(MongoDbOptions.SectionName));
 builder.Services.Configure<AthletePhotoStorageOptions>(builder.Configuration.GetSection(AthletePhotoStorageOptions.SectionName));
+builder.Services.Configure<FirebaseAuthenticationOptions>(builder.Configuration.GetSection(FirebaseAuthenticationOptions.SectionName));
 
 builder.Services
     .AddControllers()
@@ -39,7 +48,44 @@ builder.Services
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
+#if DEBUG
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(LocalDebugCorsPolicy, policyBuilder =>
+    {
+        policyBuilder
+            .WithOrigins("http://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+#endif
+
 builder.Services.AddOpenApi();
+
+var firebaseAuthenticationOptions = builder.Configuration
+    .GetSection(FirebaseAuthenticationOptions.SectionName)
+    .Get<FirebaseAuthenticationOptions>() ?? new FirebaseAuthenticationOptions();
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.Authority = firebaseAuthenticationOptions.Issuer;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = firebaseAuthenticationOptions.Issuer,
+            ValidateAudience = true,
+            ValidAudience = firebaseAuthenticationOptions.ProjectId,
+            ValidateLifetime = true,
+            NameClaimType = "user_id"
+        };
+    });
+
+builder.Services.AddAuthorizationBuilder()
+    .SetFallbackPolicy(new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build());
 
 builder.Services
     .AddFluentValidationAutoValidation()
@@ -51,6 +97,11 @@ builder.Services.AddDbContext<BodyMetricsDbContext>((serviceProvider, optionsBui
     var mongoOptions = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<MongoDbOptions>>().Value;
     optionsBuilder.UseMongoDB(mongoOptions.ConnectionString, mongoOptions.DatabaseName);
 });
+
+builder.Services.AddSingleton<MongoDbContext>();
+builder.Services.AddHostedService<MongoDbIndexesHostedService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserService, HttpContextCurrentUserService>();
 
 builder.Services.AddScoped<ISportRepository, EfSportRepository>();
 builder.Services.AddScoped<IAthleteRepository, EfAthleteRepository>();
@@ -81,7 +132,7 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.MapOpenApi().AllowAnonymous();
 }
 
 if (!app.Environment.IsEnvironment("Testing"))
@@ -89,6 +140,11 @@ if (!app.Environment.IsEnvironment("Testing"))
     app.UseHttpsRedirection();
 }
 
+#if DEBUG
+app.UseCors(LocalDebugCorsPolicy);
+#endif
+
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.Run();
