@@ -60,10 +60,16 @@ public sealed class UpdateAthleteCommandHandler(
         ProfilePhotoReferenceValueObject? profilePhoto = athlete.ProfilePhoto;
         if (command.ProfilePhoto is not null)
         {
+            var previousBlobPath = athlete.ProfilePhoto?.BlobPath;
             var storedPhoto = await photoStorage.UploadAsync(command.ProfilePhoto.ToUpload(), command.Id, cancellationToken);
             profilePhoto = storedPhoto is null
                 ? profilePhoto
                 : new ProfilePhotoReferenceValueObject(storedPhoto.BlobPath, storedPhoto.FileName, storedPhoto.ContentType, storedPhoto.UploadedAtUtc);
+
+            if (storedPhoto is not null && !string.IsNullOrWhiteSpace(previousBlobPath) && !string.Equals(previousBlobPath, storedPhoto.BlobPath, StringComparison.Ordinal))
+            {
+                await photoStorage.DeleteAsync(previousBlobPath, cancellationToken);
+            }
         }
 
         athlete.Update(

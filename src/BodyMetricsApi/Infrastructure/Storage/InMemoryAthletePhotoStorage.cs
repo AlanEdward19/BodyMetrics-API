@@ -29,5 +29,16 @@ public sealed class InMemoryAthletePhotoStorage : IAthletePhotoStorage
 
         return Task.FromResult<Uri?>(new Uri($"https://photos.local/{blobPath}"));
     }
+
+    public Task DeleteAsync(string? blobPath, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(blobPath))
+        {
+            return Task.CompletedTask;
+        }
+
+        _photos.TryRemove(blobPath, out _);
+        return Task.CompletedTask;
+    }
 }
 

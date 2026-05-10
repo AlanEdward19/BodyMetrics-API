@@ -43,6 +43,17 @@ public sealed class AzureBlobAthletePhotoStorage : IAthletePhotoStorage
         return new StoredAthletePhoto(blobPath, sanitizedFileName, upload.ContentType, DateTimeOffset.UtcNow);
     }
 
+    public async Task DeleteAsync(string? blobPath, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(blobPath))
+        {
+            return;
+        }
+
+        var blobClient = _containerClient.GetBlobClient(blobPath);
+        await blobClient.DeleteIfExistsAsync(cancellationToken: cancellationToken);
+    }
+
     public Task<Uri?> GetReadUrlAsync(string? blobPath, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(blobPath))
