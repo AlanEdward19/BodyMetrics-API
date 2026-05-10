@@ -193,6 +193,49 @@ public sealed class AthletesCrudTests(MongoContainerFixture mongoFixture, Azurit
         Assert.Equal("Alpha Runner", body.Items[0].FullName);
     }
 
+    [Theory]
+    [InlineData("An")]
+    [InlineData(" an ")]
+    [InlineData("AND")]
+    public async Task GetAllAthletes_ShouldFilterByPartialFullNameForAutocomplete(string fullName)
+    {
+        await using var factory = new TestApplicationFactory(mongoFixture, azuriteFixture);
+        using var client = factory.CreateAuthenticatedClient();
+        var sport = await CreateSportAsync(client, factory, "Volleyball");
+
+        await CreateAthleteAsync(client, factory, sport.Id, "Andre Lima");
+        await CreateAthleteAsync(client, factory, sport.Id, "Andress Souza");
+        await CreateAthleteAsync(client, factory, sport.Id, "Antonio Silva");
+        await CreateAthleteAsync(client, factory, sport.Id, "Bruno Costa");
+
+        var response = await client.GetAsync($"/api/athletes?page=1&pageSize=10&fullName={Uri.EscapeDataString(fullName)}");
+        var body = await response.Content.ReadFromJsonAsync<PagedResponseViewModel<AthleteViewModel>>(factory.JsonSerializerOptions);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(3, body.TotalCount);
+        Assert.Equal(["Andre Lima", "Andress Souza", "Antonio Silva"], body.Items.Select(item => item.FullName).ToArray());
+    }
+
+    [Fact]
+    public async Task GetAllAthletes_ShouldMatchPartialFullNameAgainstAnyNameToken()
+    {
+        await using var factory = new TestApplicationFactory(mongoFixture, azuriteFixture);
+        using var client = factory.CreateAuthenticatedClient();
+        var sport = await CreateSportAsync(client, factory, "Basketball");
+
+        await CreateAthleteAsync(client, factory, sport.Id, "Maria Andrade");
+        await CreateAthleteAsync(client, factory, sport.Id, "Carlos Pereira");
+
+        var response = await client.GetAsync("/api/athletes?page=1&pageSize=10&fullName=Andr");
+        var body = await response.Content.ReadFromJsonAsync<PagedResponseViewModel<AthleteViewModel>>(factory.JsonSerializerOptions);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        var athlete = Assert.Single(body.Items);
+        Assert.Equal("Maria Andrade", athlete.FullName);
+    }
+
     private static async Task<SportResponse> CreateSportAsync(HttpClient client, TestApplicationFactory factory, string name)
     {
         var request = new CreateSportCommand(name, ["Adult", "Youth"], ["A", "B"]);

@@ -28,8 +28,8 @@ public sealed class EfAthleteRepository(BodyMetricsDbContext dbContext) : IAthle
 
         if (!string.IsNullOrWhiteSpace(fullName))
         {
-            var normalizedFullName = fullName.Trim();
-            filtered = filtered.Where(athlete => athlete.FullName.Contains(normalizedFullName, StringComparison.OrdinalIgnoreCase));
+            var normalizedFullName = NormalizeSearchTerm(fullName);
+            filtered = filtered.Where(athlete => MatchesFullNameSearch(athlete.FullName, normalizedFullName));
         }
 
         if (!string.IsNullOrWhiteSpace(sportId))
@@ -119,6 +119,31 @@ public sealed class EfAthleteRepository(BodyMetricsDbContext dbContext) : IAthle
         dbContext.Athletes.Remove(athlete);
         await dbContext.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    private static bool MatchesFullNameSearch(string fullName, string searchTerm)
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            return true;
+        }
+
+        var normalizedFullName = NormalizeSearchTerm(fullName);
+        if (normalizedFullName.StartsWith(searchTerm, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return normalizedFullName
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Any(token => token.StartsWith(searchTerm, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string NormalizeSearchTerm(string value)
+    {
+        return string.Join(' ', value
+            .Trim()
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries));
     }
 }
 
