@@ -38,6 +38,17 @@ const string LocalDebugCorsPolicy = "LocalDebugCors";
 
 var builder = WebApplication.CreateBuilder(args);
 
+var startupEnvironment = builder.Environment.EnvironmentName;
+var mongoStartupOptions = builder.Configuration
+    .GetSection(MongoDbOptions.SectionName)
+    .Get<MongoDbOptions>() ?? new MongoDbOptions();
+var photoStorageStartupOptions = builder.Configuration
+    .GetSection(AthletePhotoStorageOptions.SectionName)
+    .Get<AthletePhotoStorageOptions>() ?? new AthletePhotoStorageOptions();
+var firebaseAuthenticationOptions = builder.Configuration
+    .GetSection(FirebaseAuthenticationOptions.SectionName)
+    .Get<FirebaseAuthenticationOptions>() ?? new FirebaseAuthenticationOptions();
+
 builder.Services.Configure<MongoDbOptions>(builder.Configuration.GetSection(MongoDbOptions.SectionName));
 builder.Services.Configure<AthletePhotoStorageOptions>(builder.Configuration.GetSection(AthletePhotoStorageOptions.SectionName));
 builder.Services.Configure<FirebaseAuthenticationOptions>(builder.Configuration.GetSection(FirebaseAuthenticationOptions.SectionName));
@@ -64,10 +75,6 @@ builder.Services.AddCors(options =>
 #endif
 
 builder.Services.AddOpenApi();
-
-var firebaseAuthenticationOptions = builder.Configuration
-    .GetSection(FirebaseAuthenticationOptions.SectionName)
-    .Get<FirebaseAuthenticationOptions>() ?? new FirebaseAuthenticationOptions();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -122,8 +129,9 @@ builder.Services.AddScoped<ImportAthletesSpreadsheetCommandHandler>();
 builder.Services.AddScoped<UpdateAthleteCommandHandler>();
 builder.Services.AddScoped<DeleteAthleteCommandHandler>();
 
-var photoStorageProvider = builder.Configuration[$"{AthletePhotoStorageOptions.SectionName}:Provider"];
-if (string.Equals(photoStorageProvider, "InMemory", StringComparison.OrdinalIgnoreCase))
+var photoStorageProvider = photoStorageStartupOptions.Provider;
+var useInMemoryPhotoStorage = string.Equals(photoStorageProvider, "InMemory", StringComparison.OrdinalIgnoreCase);
+if (useInMemoryPhotoStorage)
 {
     builder.Services.AddSingleton<IAthletePhotoStorage, InMemoryAthletePhotoStorage>();
 }
@@ -133,24 +141,66 @@ else
 }
 
 var app = builder.Build();
+var startupLogger = app.Logger;
+var isDevelopmentEnvironment = app.Environment.IsDevelopment();
+var isTestingEnvironment = app.Environment.IsEnvironment("Testing");
+var mongoConnectionConfigured = !string.IsNullOrWhiteSpace(mongoStartupOptions.ConnectionString);
+var mongoDatabaseConfigured = !string.IsNullOrWhiteSpace(mongoStartupOptions.DatabaseName);
+var firebaseIssuerConfigured = !string.IsNullOrWhiteSpace(firebaseAuthenticationOptions.Issuer);
+var firebaseProjectConfigured = !string.IsNullOrWhiteSpace(firebaseAuthenticationOptions.ProjectId);
 
-if (app.Environment.IsDevelopment())
+startupLogger.LogInformation(
+    "Startup config loaded. Environment={Environment}; MongoConfigured={MongoConfigured}; MongoDatabase={MongoDatabase}; FirebaseIssuerConfigured={FirebaseIssuerConfigured}; FirebaseProjectConfigured={FirebaseProjectConfigured}; PhotoStorageProvider={PhotoStorageProvider}; OpenApiEnabled={OpenApiEnabled}; HttpsRedirectionEnabled={HttpsRedirectionEnabled}",
+    startupEnvironment,
+    mongoConnectionConfigured && mongoDatabaseConfigured,
+    mongoStartupOptions.DatabaseName,
+    firebaseIssuerConfigured,
+    firebaseProjectConfigured,
+    useInMemoryPhotoStorage ? "InMemory" : "AzureBlob",
+    isDevelopmentEnvironment,
+    !isTestingEnvironment);
+
+if (!mongoConnectionConfigured || !mongoDatabaseConfigured)
 {
+    startupLogger.LogWarning(
+        "MongoDB startup config appears incomplete. ConnectionConfigured={ConnectionConfigured}; DatabaseConfigured={DatabaseConfigured}",
+        mongoConnectionConfigured,
+        mongoDatabaseConfigured);
+}
+
+if (!firebaseIssuerConfigured || !firebaseProjectConfigured)
+{
+    startupLogger.LogWarning(
+        "Firebase auth startup config appears incomplete. IssuerConfigured={IssuerConfigured}; ProjectConfigured={ProjectConfigured}",
+        firebaseIssuerConfigured,
+        firebaseProjectConfigured);
+}
+
+if (isDevelopmentEnvironment)
+{
+    startupLogger.LogInformation("OpenAPI endpoint enabled for development environment.");
     app.MapOpenApi().AllowAnonymous();
 }
 
-if (!app.Environment.IsEnvironment("Testing"))
+if (!isTestingEnvironment)
 {
+    startupLogger.LogInformation("HTTPS redirection enabled.");
     app.UseHttpsRedirection();
+}
+else
+{
+    startupLogger.LogInformation("HTTPS redirection disabled for Testing environment.");
 }
 
 #if DEBUG
+startupLogger.LogInformation("Local debug CORS policy enabled for http://localhost:5173.");
 app.UseCors(LocalDebugCorsPolicy);
 #endif
 
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+startupLogger.LogInformation("Startup pipeline configured. Application is ready to accept requests.");
 app.Run();
 
 public partial class Program;
