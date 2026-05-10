@@ -23,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\BodyMetricsApi\BodyMetricsApi.csproj" />
+    <ProjectReference Include="..\..\src\BodyMetricsApi\BodyMetricsApi.csproj" />
   </ItemGroup>
 
 </Project>
