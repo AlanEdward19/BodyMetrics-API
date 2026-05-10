@@ -1,4 +1,4 @@
 <Solution>
-  <Project Path="BodyMetricsApi.Tests/BodyMetricsApi.Tests.csproj" />
+  <Project Path="..\tests\BodyMetricsApi.Tests/BodyMetricsApi.Tests.csproj" />
   <Project Path="BodyMetricsApi/BodyMetricsApi.csproj" />
 </Solution>
