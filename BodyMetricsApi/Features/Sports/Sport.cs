@@ -1,6 +1,5 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
-using BodyMetricsApi.Features.Sports.Shared.ViewModels;
 
 namespace BodyMetricsApi.Features.Sports;
 
@@ -37,14 +36,19 @@ public sealed class Sport
         Categories = NormalizeDistinctValues(categories, nameof(Categories));
     }
 
+    public void MergeOptions(IEnumerable<string> sectors, IEnumerable<string> categories)
+    {
+        UpdateDetails(Name, Sectors.Concat(sectors), Categories.Concat(categories));
+    }
+
     public bool SupportsSector(string sector)
     {
-        return Sectors.Any(existing => string.Equals(existing, sector?.Trim(), StringComparison.OrdinalIgnoreCase));
+        return Sectors.Any(existing => string.Equals(existing, sector.Trim(), StringComparison.OrdinalIgnoreCase));
     }
 
     public bool SupportsCategory(string category)
     {
-        return Categories.Any(existing => string.Equals(existing, category?.Trim(), StringComparison.OrdinalIgnoreCase));
+        return Categories.Any(existing => string.Equals(existing, category.Trim(), StringComparison.OrdinalIgnoreCase));
     }
 
     private static string NormalizeRequiredText(string value, string propertyName)

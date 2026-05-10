@@ -1,12 +1,11 @@
 using BodyMetricsApi.Features.Athletes.Shared.Interfaces;
-using BodyMetricsApi.Shared.Dtos;
 using BodyMetricsApi.Infrastructure.Persistence;
+using BodyMetricsApi.Shared.Dtos;
 using Microsoft.EntityFrameworkCore;
-using MongoDB.Driver;
 
 namespace BodyMetricsApi.Features.Athletes.Shared.Persistence;
 
-public sealed class EfAthleteRepository(BodyMetricsDbContext dbContext, MongoDbContext mongoDbContext) : IAthleteRepository
+public sealed class EfAthleteRepository(BodyMetricsDbContext dbContext) : IAthleteRepository
 {
     public async Task<PagedResultDto<Athlete>> GetAllAsync(
         string ownerUserId,
@@ -72,6 +71,19 @@ public sealed class EfAthleteRepository(BodyMetricsDbContext dbContext, MongoDbC
             .FirstOrDefaultAsync(athlete => athlete.Id == id && athlete.OwnerUserId == ownerUserId, cancellationToken);
     }
 
+    public async Task<Athlete?> GetByFullNameAsync(string ownerUserId, string fullName, CancellationToken cancellationToken)
+    {
+        var normalizedFullName = fullName.Trim();
+
+        var athletes = await dbContext.Athletes
+            .AsNoTracking()
+            .Where(athlete => athlete.OwnerUserId == ownerUserId)
+            .OrderBy(athlete => athlete.FullName)
+            .ToListAsync(cancellationToken);
+
+        return athletes.FirstOrDefault(athlete => string.Equals(athlete.FullName, normalizedFullName, StringComparison.OrdinalIgnoreCase));
+    }
+
     public async Task AddAsync(Athlete athlete, CancellationToken cancellationToken)
     {
         await dbContext.Athletes.AddAsync(athlete, cancellationToken);
@@ -80,10 +92,20 @@ public sealed class EfAthleteRepository(BodyMetricsDbContext dbContext, MongoDbC
 
     public async Task ReplaceAsync(Athlete athlete, CancellationToken cancellationToken)
     {
-        await mongoDbContext.Athletes.ReplaceOneAsync(
-            current => current.Id == athlete.Id && current.OwnerUserId == athlete.OwnerUserId,
-            athlete,
-            cancellationToken: cancellationToken);
+        var existingAthlete = await dbContext.Athletes
+            .FirstOrDefaultAsync(
+                current => current.Id == athlete.Id && current.OwnerUserId == athlete.OwnerUserId,
+                cancellationToken);
+
+        if (existingAthlete is null)
+        {
+            throw new InvalidOperationException($"Athlete '{athlete.Id}' could not be replaced.");
+        }
+
+        dbContext.Athletes.Remove(existingAthlete);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await dbContext.Athletes.AddAsync(athlete, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<bool> DeleteAsync(string id, string ownerUserId, CancellationToken cancellationToken)

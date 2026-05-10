@@ -2,6 +2,8 @@
 using BodyMetricsApi.Features.Athletes.Delete;
 using BodyMetricsApi.Features.Athletes.GetAll;
 using BodyMetricsApi.Features.Athletes.GetById;
+using BodyMetricsApi.Features.Athletes.Import;
+using BodyMetricsApi.Features.Athletes.Import.ViewModels;
 using BodyMetricsApi.Features.Athletes.Shared.Enums;
 using BodyMetricsApi.Features.Athletes.Shared.ViewModels;
 using BodyMetricsApi.Features.Athletes.Update;
@@ -42,6 +44,23 @@ public sealed class AthletesController : ControllerBase
         }
 
         return CreatedAtRoute(GetAthleteByIdRouteName, new { id = result.Value!.Id }, result.Value);
+    }
+
+    [HttpPost("import")]
+    [Consumes("multipart/form-data")]
+    [EndpointSummary("Imports athletes from an Excel spreadsheet.")]
+    [EndpointDescription("Imports athlete rows from an uploaded .xlsx file, creates or enriches the selected sport, and upserts athletes by owner plus full name.")]
+    [ProducesResponseType(typeof(AthleteSpreadsheetImportViewModel), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ImportSpreadsheet(
+        [FromForm] ImportAthletesSpreadsheetCommand command,
+        [FromServices] ImportAthletesSpreadsheetCommandHandler handler,
+        CancellationToken cancellationToken)
+    {
+        var result = await handler.HandleAsync(command, cancellationToken);
+        return this.ToActionResult(result);
     }
 
     [HttpGet]

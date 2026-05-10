@@ -49,6 +49,18 @@ public sealed class EfSportRepository(BodyMetricsDbContext dbContext) : ISportRe
         return new PagedResultDto<Sport>(pagedItems, filteredList.Count);
     }
 
+    public async Task<Sport?> GetByNameAsync(string name, CancellationToken cancellationToken)
+    {
+        var normalizedName = name.Trim();
+
+        var sports = await dbContext.Sports
+            .AsNoTracking()
+            .OrderBy(sport => sport.Name)
+            .ToListAsync(cancellationToken);
+
+        return sports.FirstOrDefault(sport => string.Equals(sport.Name, normalizedName, StringComparison.OrdinalIgnoreCase));
+    }
+
     public async Task<Sport?> GetByIdAsync(string id, CancellationToken cancellationToken)
     {
         return await dbContext.Sports

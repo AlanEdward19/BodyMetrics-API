@@ -12,6 +12,8 @@ public interface ISportRepository
         string? category,
         CancellationToken cancellationToken);
 
+    Task<Sport?> GetByNameAsync(string name, CancellationToken cancellationToken);
+
     Task<Sport?> GetByIdAsync(string id, CancellationToken cancellationToken);
 
     Task AddAsync(Sport sport, CancellationToken cancellationToken);

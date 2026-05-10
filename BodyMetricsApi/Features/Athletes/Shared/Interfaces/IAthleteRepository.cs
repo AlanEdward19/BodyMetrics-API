@@ -18,6 +18,8 @@ public interface IAthleteRepository
 
     Task<Athlete?> GetByIdAsync(string id, string ownerUserId, CancellationToken cancellationToken);
 
+    Task<Athlete?> GetByFullNameAsync(string ownerUserId, string fullName, CancellationToken cancellationToken);
+
     Task AddAsync(Athlete athlete, CancellationToken cancellationToken);
 
     Task ReplaceAsync(Athlete athlete, CancellationToken cancellationToken);

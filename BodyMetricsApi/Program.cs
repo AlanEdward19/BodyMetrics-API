@@ -4,6 +4,7 @@ using BodyMetricsApi.Features.Athletes.Create;
 using BodyMetricsApi.Features.Athletes.Delete;
 using BodyMetricsApi.Features.Athletes.GetAll;
 using BodyMetricsApi.Features.Athletes.GetById;
+using BodyMetricsApi.Features.Athletes.Import;
 using BodyMetricsApi.Features.Athletes.Shared.Interfaces;
 using BodyMetricsApi.Features.Athletes.Shared.Persistence;
 using BodyMetricsApi.Features.Athletes.Update;
@@ -25,6 +26,7 @@ using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.EntityFrameworkCore.Extensions;
 
@@ -95,6 +97,7 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddDbContext<BodyMetricsDbContext>((serviceProvider, optionsBuilder) =>
 {
     var mongoOptions = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<MongoDbOptions>>().Value;
+    optionsBuilder.ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
     optionsBuilder.UseMongoDB(mongoOptions.ConnectionString, mongoOptions.DatabaseName);
 });
 
@@ -115,6 +118,7 @@ builder.Services.AddScoped<DeleteSportCommandHandler>();
 builder.Services.AddScoped<CreateAthleteCommandHandler>();
 builder.Services.AddScoped<GetAllAthletesQueryHandler>();
 builder.Services.AddScoped<GetAthleteByIdQueryHandler>();
+builder.Services.AddScoped<ImportAthletesSpreadsheetCommandHandler>();
 builder.Services.AddScoped<UpdateAthleteCommandHandler>();
 builder.Services.AddScoped<DeleteAthleteCommandHandler>();
 
