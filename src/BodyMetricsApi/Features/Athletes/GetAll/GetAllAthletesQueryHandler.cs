@@ -1,5 +1,6 @@
 ﻿using BodyMetricsApi.Features.Athletes.Shared.Interfaces;
 using BodyMetricsApi.Features.Athletes.Shared.ViewModels;
+using BodyMetricsApi.Features.AthleteGroups.Shared.Interfaces;
 using BodyMetricsApi.Infrastructure.Storage;
 using BodyMetricsApi.Shared.Authentication;
 using BodyMetricsApi.Shared.Results;
@@ -11,6 +12,7 @@ namespace BodyMetricsApi.Features.Athletes.GetAll;
 
 public sealed class GetAllAthletesQueryHandler(
     IAthleteRepository athleteRepository,
+    IAthleteGroupRepository groupRepository,
     IAthletePhotoStorage photoStorage,
     ICurrentUserService currentUserService,
     IValidator<GetAllAthletesQuery> validator)
@@ -23,6 +25,13 @@ public sealed class GetAllAthletesQueryHandler(
             return OperationResult<PagedResponseViewModel<AthleteViewModel>>.Validation(validationResult.ToErrorDictionary());
         }
 
+        IReadOnlyList<string>? groupAthleteIds = null;
+        if (!string.IsNullOrWhiteSpace(query.GroupId))
+        {
+            var group = await groupRepository.GetByIdAsync(query.GroupId, currentUserService.UserId, cancellationToken);
+            groupAthleteIds = group?.AthleteIds ?? [];
+        }
+
         var athletes = await athleteRepository.GetAllAsync(
             currentUserService.UserId,
             query.Page,
@@ -32,6 +41,7 @@ public sealed class GetAllAthletesQueryHandler(
             query.Sector,
             query.Category,
             query.Phase,
+            groupAthleteIds,
             cancellationToken);
 
         var viewModels = new List<AthleteViewModel>(athletes.Items.Count);

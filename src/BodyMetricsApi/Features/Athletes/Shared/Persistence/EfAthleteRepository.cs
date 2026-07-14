@@ -16,6 +16,7 @@ public sealed class EfAthleteRepository(BodyMetricsDbContext dbContext) : IAthle
         string? sector,
         string? category,
         Features.Athletes.Shared.Enums.Phase? phase,
+        IReadOnlyList<string>? groupAthleteIds,
         CancellationToken cancellationToken)
     {
         var athletes = await dbContext.Athletes
@@ -25,6 +26,11 @@ public sealed class EfAthleteRepository(BodyMetricsDbContext dbContext) : IAthle
             .ToListAsync(cancellationToken);
 
         IEnumerable<Athlete> filtered = athletes;
+
+        if (groupAthleteIds is not null)
+        {
+            filtered = filtered.Where(athlete => groupAthleteIds.Contains(athlete.Id));
+        }
 
         if (!string.IsNullOrWhiteSpace(fullName))
         {

@@ -1,4 +1,5 @@
 ﻿using BodyMetricsApi.Features.Athletes;
+using BodyMetricsApi.Features.AthleteGroups;
 using BodyMetricsApi.Features.Sports;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,10 +11,13 @@ public sealed class BodyMetricsDbContext(DbContextOptions<BodyMetricsDbContext> 
 
     public DbSet<Athlete> Athletes => Set<Athlete>();
 
+    public DbSet<AthleteGroup> AthleteGroups => Set<AthleteGroup>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Sport>().HasKey(sport => sport.Id);
         modelBuilder.Entity<Athlete>().HasKey(athlete => athlete.Id);
+        modelBuilder.Entity<AthleteGroup>().HasKey(group => group.Id);
 
         base.OnModelCreating(modelBuilder);
     }
