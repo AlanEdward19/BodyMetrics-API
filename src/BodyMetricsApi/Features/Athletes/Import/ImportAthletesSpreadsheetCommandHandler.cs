@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 using BodyMetricsApi.Features.Athletes.Import.Dtos;
 using BodyMetricsApi.Features.Athletes.Import.ViewModels;
 using BodyMetricsApi.Features.Athletes.PhysicalAssessments;
@@ -60,6 +61,12 @@ public sealed class ImportAthletesSpreadsheetCommandHandler(
     private const string RightAnkleColumn = "D.Tornozelo";
 
     private static readonly CultureInfo PtBrCulture = CultureInfo.GetCultureInfo("pt-BR");
+
+    // ClosedXML synthesizes "Column<N>" as the text of an unnamed Excel Table header cell.
+    // Spreadsheets sometimes carry stray/duplicate Table objects (e.g. from copy-pasting a
+    // table-formatted range), which turns an otherwise ordinary data row into that table's
+    // header row - any blank cell on it then reads back as this placeholder instead of empty.
+    private static readonly Regex SyntheticTableColumnNamePattern = new(@"^Column\d+$", RegexOptions.Compiled);
 
     private static readonly Dictionary<string, string[]> ColumnAliases = new(StringComparer.Ordinal)
     {
@@ -179,7 +186,32 @@ public sealed class ImportAthletesSpreadsheetCommandHandler(
         var importedAssessments = 0;
         var replacedAssessments = 0;
 
-        foreach (var athleteGroup in importedRows.GroupBy(row => row.FullName, StringComparer.OrdinalIgnoreCase))
+        var athleteGroups = importedRows.GroupBy(row => row.FullName, StringComparer.OrdinalIgnoreCase).ToList();
+        var existingAthletesByName = await athleteRepository.GetByFullNamesAsync(
+            currentUserService.UserId, athleteGroups.Select(group => group.Key).ToList(), cancellationToken);
+
+        // Batches writes so a large spreadsheet does one SaveChanges per batch instead of
+        // one per athlete, while keeping the pending in-memory set bounded.
+        const int WriteBatchSize = 200;
+        var athletesToCreate = new List<Athlete>();
+        var athletesToReplace = new List<Athlete>();
+
+        async Task FlushPendingWritesAsync()
+        {
+            if (athletesToCreate.Count > 0)
+            {
+                await athleteRepository.AddRangeAsync(athletesToCreate, cancellationToken);
+                athletesToCreate.Clear();
+            }
+
+            if (athletesToReplace.Count > 0)
+            {
+                await athleteRepository.ReplaceRangeAsync(athletesToReplace, cancellationToken);
+                athletesToReplace.Clear();
+            }
+        }
+
+        foreach (var athleteGroup in athleteGroups)
         {
             var latestRow = athleteGroup.Last();
             var groupedAssessments = athleteGroup
@@ -190,9 +222,7 @@ public sealed class ImportAthletesSpreadsheetCommandHandler(
 
             importedAssessments += groupedAssessments.Count;
 
-            var athlete =
-                await athleteRepository.GetByFullNameAsync(currentUserService.UserId, latestRow.FullName,
-                    cancellationToken);
+            existingAthletesByName.TryGetValue(latestRow.FullName.Trim().ToUpperInvariant(), out var athlete);
             if (athlete is null)
             {
                 athlete = Athlete.Create(
@@ -208,8 +238,14 @@ public sealed class ImportAthletesSpreadsheetCommandHandler(
                     groupedAssessments,
                     null);
 
-                await athleteRepository.AddAsync(athlete, cancellationToken);
+                athletesToCreate.Add(athlete);
                 createdAthletes++;
+
+                if (athletesToCreate.Count + athletesToReplace.Count >= WriteBatchSize)
+                {
+                    await FlushPendingWritesAsync();
+                }
+
                 continue;
             }
 
@@ -238,9 +274,16 @@ public sealed class ImportAthletesSpreadsheetCommandHandler(
                 mergedAssessments,
                 athlete.ProfilePhoto);
 
-            await athleteRepository.ReplaceAsync(athlete, cancellationToken);
+            athletesToReplace.Add(athlete);
             updatedAthletes++;
+
+            if (athletesToCreate.Count + athletesToReplace.Count >= WriteBatchSize)
+            {
+                await FlushPendingWritesAsync();
+            }
         }
+
+        await FlushPendingWritesAsync();
 
         return OperationResult<AthleteSpreadsheetImportViewModel>.Success(
             new AthleteSpreadsheetImportViewModel(
@@ -278,7 +321,7 @@ public sealed class ImportAthletesSpreadsheetCommandHandler(
         for (var rowNumber = headerRow.RowNumber() + 1; rowNumber <= lastRowNumber; rowNumber++)
         {
             var row = worksheet.Row(rowNumber);
-            if (IsRowEmpty(row, lastColumnNumber))
+            if (IsRowEmpty(row, columnIndexes))
             {
                 continue;
             }
@@ -406,17 +449,12 @@ public sealed class ImportAthletesSpreadsheetCommandHandler(
         }
     }
 
-    private static bool IsRowEmpty(IXLRow row, int lastColumnNumber)
+    // A row with no name has no athlete to attach the rest of its columns to, regardless of
+    // stray leftover values elsewhere (e.g. a Setor value left behind from a deleted record).
+    // Skip it instead of failing the whole import over an incomplete/orphaned row.
+    private static bool IsRowEmpty(IXLRow row, IReadOnlyDictionary<string, int> columnIndexes)
     {
-        for (var columnNumber = 1; columnNumber <= lastColumnNumber; columnNumber++)
-        {
-            if (!string.IsNullOrWhiteSpace(GetCellText(row.Cell(columnNumber))))
-            {
-                return false;
-            }
-        }
-
-        return true;
+        return string.IsNullOrWhiteSpace(GetCellText(row.Cell(columnIndexes[FullNameColumn])));
     }
 
     private static string GetRequiredText(IXLRow row, int columnNumber, string columnName)
@@ -538,9 +576,22 @@ public sealed class ImportAthletesSpreadsheetCommandHandler(
     private static string GetCellText(IXLCell cell)
     {
         var text = cell.GetFormattedString();
-        return string.IsNullOrWhiteSpace(text)
+        text = string.IsNullOrWhiteSpace(text)
             ? cell.GetString().Trim()
             : text.Trim();
+
+        if (SyntheticTableColumnNamePattern.IsMatch(text) && IsPhantomTableHeaderRow(cell))
+        {
+            return string.Empty;
+        }
+
+        return text;
+    }
+
+    private static bool IsPhantomTableHeaderRow(IXLCell cell)
+    {
+        var rowNumber = cell.Address.RowNumber;
+        return cell.Worksheet.Tables.Any(table => table.RangeAddress.FirstAddress.RowNumber == rowNumber);
     }
 
     private static Phase ParsePhase(string value, int rowNumber)

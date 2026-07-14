@@ -279,6 +279,151 @@ public sealed class AthletesImportSpreadsheetTests(MongoContainerFixture mongoFi
         Assert.Equal(36.5m, assessment.Circumferences.LeftCalfCm);
     }
 
+    [Fact]
+    public async Task ImportSpreadsheet_ShouldCreateAthletesAcrossMultipleWriteBatches()
+    {
+        await using var factory = new TestApplicationFactory(mongoFixture, azuriteFixture);
+        using var client = factory.CreateAuthenticatedClient();
+        const int athleteCount = 205; // exceeds the importer's internal write-batch size (200)
+        var rows = Enumerable.Range(1, athleteCount)
+            .Select(index => CreateSpreadsheetRow($"Batch Athlete {index:D4}"))
+            .ToArray();
+        using var content = CreateImportContent("Rugby", BuildWorkbookBytes(DefaultHeaders, rows));
+
+        var response = await client.PostAsync("/api/athletes/import", content);
+        var summary = await response.Content.ReadFromJsonAsync<AthleteSpreadsheetImportViewModel>(factory.JsonSerializerOptions);
+        var athletesResponse = await client.GetAsync("/api/athletes?page=1&pageSize=1&fullName=Batch%20Athlete");
+        var athletes = await athletesResponse.Content.ReadFromJsonAsync<PagedResponseViewModel<AthleteViewModel>>(factory.JsonSerializerOptions);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(summary);
+        Assert.Equal(athleteCount, summary.CreatedAthletes);
+        Assert.NotNull(athletes);
+        Assert.Equal(athleteCount, athletes.TotalCount);
+    }
+
+    [Fact]
+    public async Task ImportSpreadsheet_ShouldTreatBlankCellAsEmptyWhenRowIsAlsoAStrayTableHeaderRow()
+    {
+        await using var factory = new TestApplicationFactory(mongoFixture, azuriteFixture);
+        using var client = factory.CreateAuthenticatedClient();
+        using var content = CreateImportContent("Volleyball", BuildWorkbookWithStrayTableHeaderOnDataRow());
+
+        var response = await client.PostAsync("/api/athletes/import", content);
+        var summary = await response.Content.ReadFromJsonAsync<AthleteSpreadsheetImportViewModel>(factory.JsonSerializerOptions);
+        var athletesResponse = await client.GetAsync("/api/athletes?page=1&pageSize=10&fullName=Stray%20Table%20Row");
+        var athletes = await athletesResponse.Content.ReadFromJsonAsync<PagedResponseViewModel<AthleteViewModel>>(factory.JsonSerializerOptions);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(summary);
+        Assert.Equal(1, summary.CreatedAthletes);
+        Assert.NotNull(athletes);
+        var athlete = Assert.Single(athletes.Items);
+        var assessment = Assert.Single(athlete.PhysicalAssessments);
+        Assert.Null(assessment.Circumferences.ShoulderCm);
+    }
+
+    [Fact]
+    public async Task ImportSpreadsheet_ShouldSkipRowWithStrayContentOutsideMappedColumns()
+    {
+        await using var factory = new TestApplicationFactory(mongoFixture, azuriteFixture);
+        using var client = factory.CreateAuthenticatedClient();
+        using var content = CreateImportContent("Volleyball", BuildWorkbookWithStrayContentOutsideMappedColumns());
+
+        var response = await client.PostAsync("/api/athletes/import", content);
+        var summary = await response.Content.ReadFromJsonAsync<AthleteSpreadsheetImportViewModel>(factory.JsonSerializerOptions);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(summary);
+        Assert.Equal(1, summary.CreatedAthletes);
+    }
+
+    // Reproduces a real-world spreadsheet defect: a genuinely blank row (no data in any column
+    // this importer maps) can still carry leftover content in unrelated columns beyond the ones
+    // we read (e.g. derived/computed columns from a wider export). That row must still be
+    // skipped instead of being treated as an athlete record with missing required fields.
+    private static byte[] BuildWorkbookWithStrayContentOutsideMappedColumns()
+    {
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Athletes");
+
+        for (var columnIndex = 0; columnIndex < DefaultHeaders.Count; columnIndex++)
+        {
+            worksheet.Cell(1, columnIndex + 1).Value = DefaultHeaders[columnIndex];
+        }
+
+        var row = CreateSpreadsheetRow("Mapped Row");
+        for (var columnIndex = 0; columnIndex < DefaultHeaders.Count; columnIndex++)
+        {
+            var value = row[columnIndex];
+            worksheet.Cell(2, columnIndex + 1).Value = value is DateOnly dateOnly
+                ? dateOnly.ToDateTime(TimeOnly.MinValue)
+                : value switch
+                {
+                    decimal decimalValue => decimalValue,
+                    _ => value!.ToString()
+                };
+        }
+
+        // Row 3 is blank in every column this importer maps, but has leftover content in a
+        // column beyond the last mapped header - it must still be treated as empty and skipped.
+        worksheet.Cell(3, DefaultHeaders.Count + 5).Value = "leftover computed value";
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
+    }
+
+    // Reproduces a real-world spreadsheet defect: a stray Excel Table object (e.g. from
+    // copy-pasting a table-formatted range) can turn an ordinary data row into that table's
+    // header row. ClosedXML then reports a blank cell on that row as "Column<N>" instead of
+    // empty, because Excel Tables require non-blank header cell text.
+    private static byte[] BuildWorkbookWithStrayTableHeaderOnDataRow()
+    {
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Athletes");
+
+        for (var columnIndex = 0; columnIndex < DefaultHeaders.Count; columnIndex++)
+        {
+            worksheet.Cell(1, columnIndex + 1).Value = DefaultHeaders[columnIndex];
+        }
+
+        var row = CreateSpreadsheetRow("Stray Table Row");
+        var shoulderColumnIndex = Array.IndexOf(DefaultHeaders.ToArray(), "C. ombro");
+        row[shoulderColumnIndex] = null;
+
+        for (var columnIndex = 0; columnIndex < DefaultHeaders.Count; columnIndex++)
+        {
+            var value = row[columnIndex];
+            if (value is DateOnly dateOnly)
+            {
+                worksheet.Cell(2, columnIndex + 1).Value = dateOnly.ToDateTime(TimeOnly.MinValue);
+                continue;
+            }
+
+            if (value is null)
+            {
+                continue;
+            }
+
+            worksheet.Cell(2, columnIndex + 1).Value = value switch
+            {
+                decimal decimalValue => decimalValue,
+                _ => value.ToString()
+            };
+        }
+
+        // Wraps the single data row (row 2) as its own mini Excel Table, mimicking the stray
+        // tables found in real exported spreadsheets. This makes row 2 act as that table's
+        // header row from ClosedXML's perspective, even though it also holds athlete data.
+        var strayRange = worksheet.Range(2, 1, 2, DefaultHeaders.Count);
+        strayRange.CreateTable("StrayTable");
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
+    }
+
     private static async Task<SportResponse> CreateSportAsync(HttpClient client, TestApplicationFactory factory, string name, string[] sectors, string[] categories)
     {
         var response = await client.PostAsJsonAsync("/api/sports", new CreateSportCommand(name, sectors, categories), factory.JsonSerializerOptions);
