@@ -1,4 +1,5 @@
-﻿using BodyMetricsApi.Features.Athletes.Shared.Interfaces;
+using BodyMetricsApi.Features.Athletes.Shared;
+using BodyMetricsApi.Features.Athletes.Shared.Interfaces;
 using BodyMetricsApi.Features.Athletes.Shared.ViewModels;
 using BodyMetricsApi.Features.AthleteGroups.Shared.Interfaces;
 using BodyMetricsApi.Infrastructure.Storage;
@@ -25,37 +26,54 @@ public sealed class GetAllAthletesQueryHandler(
             return OperationResult<PagedResponseViewModel<AthleteViewModel>>.Validation(validationResult.ToErrorDictionary());
         }
 
-        IReadOnlyList<string>? groupAthleteIds = null;
+        IReadOnlyList<Athlete> pagedItems;
+        long totalCount;
+
         if (!string.IsNullOrWhiteSpace(query.GroupId))
         {
+            // A group owned by another user (or a bad id) reads as "no members", matching
+            // the pre-existing behavior of this filter rather than surfacing a 404 here.
             var group = await groupRepository.GetByIdAsync(query.GroupId, currentUserService.UserId, cancellationToken);
-            groupAthleteIds = group?.AthleteIds ?? [];
+            var filtered = AthleteFilter.Apply(group?.Members ?? [], query.FullName, query.SportId, query.Sector, query.Category, query.Phase);
+            pagedItems = AthleteFilter.Paginate(filtered, query.Page, query.PageSize, out var groupFilteredCount);
+            totalCount = groupFilteredCount;
+        }
+        else if (query.IncludeGrouped)
+        {
+            var standalone = await athleteRepository.GetAllRawAsync(currentUserService.UserId, cancellationToken);
+            var groups = await groupRepository.GetAllByOwnerAsync(currentUserService.UserId, cancellationToken);
+            var combined = standalone.Concat(groups.SelectMany(g => g.Members));
+            var filtered = AthleteFilter.Apply(combined, query.FullName, query.SportId, query.Sector, query.Category, query.Phase);
+            pagedItems = AthleteFilter.Paginate(filtered, query.Page, query.PageSize, out var combinedFilteredCount);
+            totalCount = combinedFilteredCount;
+        }
+        else
+        {
+            var paged = await athleteRepository.GetAllAsync(
+                currentUserService.UserId,
+                query.Page,
+                query.PageSize,
+                query.FullName,
+                query.SportId,
+                query.Sector,
+                query.Category,
+                query.Phase,
+                cancellationToken);
+            pagedItems = paged.Items;
+            totalCount = paged.TotalCount;
         }
 
-        var athletes = await athleteRepository.GetAllAsync(
-            currentUserService.UserId,
-            query.Page,
-            query.PageSize,
-            query.FullName,
-            query.SportId,
-            query.Sector,
-            query.Category,
-            query.Phase,
-            groupAthleteIds,
-            cancellationToken);
-
-        var viewModels = new List<AthleteViewModel>(athletes.Items.Count);
-
-        foreach (var athlete in athletes.Items)
+        var viewModels = new List<AthleteViewModel>(pagedItems.Count);
+        foreach (var athlete in pagedItems)
         {
             viewModels.Add(await athlete.ToViewModelAsync(photoStorage, cancellationToken));
         }
 
-        var totalPages = athletes.TotalCount == 0
+        var totalPages = totalCount == 0
             ? 0
-            : (int)Math.Ceiling(athletes.TotalCount / (double)query.PageSize);
+            : (int)Math.Ceiling(totalCount / (double)query.PageSize);
 
         return OperationResult<PagedResponseViewModel<AthleteViewModel>>.Success(
-            new PagedResponseViewModel<AthleteViewModel>(viewModels, query.Page, query.PageSize, athletes.TotalCount, totalPages));
+            new PagedResponseViewModel<AthleteViewModel>(viewModels, query.Page, query.PageSize, totalCount, totalPages));
     }
 }

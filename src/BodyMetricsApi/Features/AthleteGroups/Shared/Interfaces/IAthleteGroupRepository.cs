@@ -8,6 +8,8 @@ public interface IAthleteGroupRepository
 
     Task<List<AthleteGroup>> GetAllByOwnerAsync(string ownerUserId, CancellationToken cancellationToken);
 
+    Task<AthleteGroup?> FindByMemberIdAsync(string ownerUserId, string athleteId, CancellationToken cancellationToken);
+
     Task UpdateAsync(AthleteGroup group, CancellationToken cancellationToken);
 
     Task<bool> DeleteAsync(string id, string ownerUserId, CancellationToken cancellationToken);

@@ -5,6 +5,7 @@ using BodyMetricsApi.Features.Athletes.Delete;
 using BodyMetricsApi.Features.Athletes.GetAll;
 using BodyMetricsApi.Features.Athletes.GetById;
 using BodyMetricsApi.Features.Athletes.Import;
+using BodyMetricsApi.Features.Athletes.Shared;
 using BodyMetricsApi.Features.Athletes.Shared.Interfaces;
 using BodyMetricsApi.Features.Athletes.Shared.Persistence;
 using BodyMetricsApi.Features.Athletes.Update;
@@ -14,6 +15,7 @@ using BodyMetricsApi.Features.AthleteGroups.Create;
 using BodyMetricsApi.Features.AthleteGroups.Delete;
 using BodyMetricsApi.Features.AthleteGroups.GetAll;
 using BodyMetricsApi.Features.AthleteGroups.GetById;
+using BodyMetricsApi.Features.AthleteGroups.GetMembers;
 using BodyMetricsApi.Features.AthleteGroups.RemoveMember;
 using BodyMetricsApi.Features.AthleteGroups.Shared.Interfaces;
 using BodyMetricsApi.Features.AthleteGroups.Shared.Persistence;
@@ -125,7 +127,8 @@ builder.Services.AddScoped<ICurrentUserService, HttpContextCurrentUserService>()
 
 builder.Services.AddScoped<ISportRepository, EfSportRepository>();
 builder.Services.AddScoped<IAthleteRepository, EfAthleteRepository>();
-builder.Services.AddScoped<IAthleteGroupRepository, EfAthleteGroupRepository>();
+builder.Services.AddScoped<IAthleteGroupRepository, MongoAthleteGroupRepository>();
+builder.Services.AddScoped<AthleteLocator>();
 
 builder.Services.AddScoped<CreateSportCommandHandler>();
 builder.Services.AddScoped<GetAllSportsQueryHandler>();
@@ -143,6 +146,7 @@ builder.Services.AddScoped<DeleteAthleteCommandHandler>();
 builder.Services.AddScoped<CreateAthleteGroupCommandHandler>();
 builder.Services.AddScoped<GetAllAthleteGroupsQueryHandler>();
 builder.Services.AddScoped<GetAthleteGroupByIdQueryHandler>();
+builder.Services.AddScoped<GetAthleteGroupMembersQueryHandler>();
 builder.Services.AddScoped<UpdateAthleteGroupCommandHandler>();
 builder.Services.AddScoped<DeleteAthleteGroupCommandHandler>();
 builder.Services.AddScoped<AddAthleteToGroupCommandHandler>();

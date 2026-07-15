@@ -1,3 +1,4 @@
+using BodyMetricsApi.Features.Athletes.Shared.Interfaces;
 using BodyMetricsApi.Features.AthleteGroups.Shared.Interfaces;
 using BodyMetricsApi.Shared.Authentication;
 using BodyMetricsApi.Shared.Results;
@@ -7,6 +8,7 @@ namespace BodyMetricsApi.Features.AthleteGroups.RemoveMember;
 
 public sealed class RemoveAthleteFromGroupCommandHandler(
     IAthleteGroupRepository groupRepository,
+    IAthleteRepository athleteRepository,
     ICurrentUserService currentUserService)
 {
     public async Task<OperationResult> HandleAsync(RemoveAthleteFromGroupCommand command, CancellationToken cancellationToken)
@@ -17,8 +19,14 @@ public sealed class RemoveAthleteFromGroupCommandHandler(
             return OperationResult.NotFound("Athlete group not found.");
         }
 
-        group.RemoveMember(command.AthleteId);
+        var removedAthlete = group.RemoveMember(command.AthleteId);
+        if (removedAthlete is null)
+        {
+            return OperationResult.Success(StatusCodes.Status204NoContent);
+        }
+
         await groupRepository.UpdateAsync(group, cancellationToken);
+        await athleteRepository.AddAsync(removedAthlete, cancellationToken);
 
         return OperationResult.Success(StatusCodes.Status204NoContent);
     }

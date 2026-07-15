@@ -14,8 +14,9 @@ public interface IAthleteRepository
         string? sector,
         string? category,
         Phase? phase,
-        IReadOnlyList<string>? groupAthleteIds,
         CancellationToken cancellationToken);
+
+    Task<List<Athlete>> GetAllRawAsync(string ownerUserId, CancellationToken cancellationToken);
 
     Task<Athlete?> GetByIdAsync(string id, string ownerUserId, CancellationToken cancellationToken);
 

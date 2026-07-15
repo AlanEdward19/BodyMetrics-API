@@ -1,21 +1,16 @@
 using BodyMetricsApi.Features.Athletes;
 using BodyMetricsApi.Features.Athletes.PhysicalAssessments;
-using BodyMetricsApi.Features.Athletes.PhysicalAssessments.Shared.ValueObjects;
-using BodyMetricsApi.Features.Athletes.Shared.Interfaces;
 using BodyMetricsApi.Features.AthleteGroups.Shared.Interfaces;
 using BodyMetricsApi.Features.AthleteGroups.Shared.ViewModels;
 using BodyMetricsApi.Shared.Authentication;
 using BodyMetricsApi.Shared.Results;
 using BodyMetricsApi.Shared.Validation;
 using FluentValidation;
-using Microsoft.EntityFrameworkCore;
-using BodyMetricsApi.Infrastructure.Persistence;
 
 namespace BodyMetricsApi.Features.AthleteGroups.Compare;
 
 public sealed class CompareAthleteGroupsQueryHandler(
     IAthleteGroupRepository groupRepository,
-    BodyMetricsDbContext dbContext,
     ICurrentUserService currentUserService,
     IValidator<CompareAthleteGroupsQuery> validator)
 {
@@ -37,14 +32,7 @@ public sealed class CompareAthleteGroupsQueryHandler(
                 return OperationResult<List<AthleteGroupComparisonViewModel>>.NotFound($"Athlete group '{groupId}' not found.");
             }
 
-            List<Athlete> athletes = [];
-            if (group.AthleteIds.Count > 0)
-            {
-                athletes = await dbContext.Athletes
-                    .AsNoTracking()
-                    .Where(a => a.OwnerUserId == currentUserService.UserId && group.AthleteIds.Contains(a.Id))
-                    .ToListAsync(cancellationToken);
-            }
+            var athletes = group.Members;
 
             var latestAssessments = athletes
                 .Select(a => a.PhysicalAssessments.OrderByDescending(pa => pa.AssessmentDate).FirstOrDefault())

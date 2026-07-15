@@ -10,5 +10,6 @@ public sealed record AthleteSpreadsheetImportViewModel(
     int ReplacedAssessments,
     int AddedSportSectors,
     int AddedSportCategories,
-    bool SportCreated);
+    bool SportCreated,
+    int CreatedGroups);
 

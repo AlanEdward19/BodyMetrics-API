@@ -1,9 +1,11 @@
+using BodyMetricsApi.Features.Athletes.Shared.ViewModels;
 using BodyMetricsApi.Features.AthleteGroups.AddMember;
 using BodyMetricsApi.Features.AthleteGroups.Compare;
 using BodyMetricsApi.Features.AthleteGroups.Create;
 using BodyMetricsApi.Features.AthleteGroups.Delete;
 using BodyMetricsApi.Features.AthleteGroups.GetAll;
 using BodyMetricsApi.Features.AthleteGroups.GetById;
+using BodyMetricsApi.Features.AthleteGroups.GetMembers;
 using BodyMetricsApi.Features.AthleteGroups.RemoveMember;
 using BodyMetricsApi.Features.AthleteGroups.Shared.ViewModels;
 using BodyMetricsApi.Features.AthleteGroups.Update;
@@ -106,9 +108,24 @@ public sealed class AthleteGroupsController : ControllerBase
         return this.ToActionResult(result);
     }
 
+    [HttpGet("{id}/members")]
+    [EndpointSummary("Lists the athletes in a group.")]
+    [EndpointDescription("Returns the athletes embedded in the group owned by the authenticated user.")]
+    [ProducesResponseType(typeof(List<AthleteViewModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetMembers(
+        string id,
+        [FromServices] GetAthleteGroupMembersQueryHandler handler,
+        CancellationToken cancellationToken)
+    {
+        var result = await handler.HandleAsync(new GetAthleteGroupMembersQuery(id), cancellationToken);
+        return this.ToActionResult(result);
+    }
+
     [HttpPost("{id}/members/{athleteId}")]
     [EndpointSummary("Adds an athlete to a group.")]
-    [EndpointDescription("Adds the specified athlete (owned by the authenticated user) to the group. Idempotent — adding an existing member returns 204.")]
+    [EndpointDescription("Adds the specified athlete (owned by the authenticated user) to the group. The athlete is physically moved into the group's embedded member list, from wherever it currently lives (standalone or another group) — this also acts as \"move athlete to group\". Idempotent — adding an existing member returns 204.")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -124,7 +141,7 @@ public sealed class AthleteGroupsController : ControllerBase
 
     [HttpDelete("{id}/members/{athleteId}")]
     [EndpointSummary("Removes an athlete from a group.")]
-    [EndpointDescription("Removes the specified athlete from the group. Idempotent — removing a non-member returns 204. The athlete is not deleted from the system.")]
+    [EndpointDescription("Removes the specified athlete from the group and returns it to the standalone (ungrouped) athlete list. Idempotent — removing a non-member returns 204. The athlete is not deleted from the system.")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]

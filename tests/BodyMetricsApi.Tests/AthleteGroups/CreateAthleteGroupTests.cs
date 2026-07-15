@@ -36,7 +36,7 @@ public sealed class CreateAthleteGroupTests(MongoContainerFixture mongoFixture, 
         Assert.NotNull(body);
         Assert.NotEmpty(body.Id);
         Assert.Equal("Starters", body.Name);
-        Assert.Empty(body.AthleteIds);
+        Assert.Empty(body.Members);
     }
 
     [Theory]

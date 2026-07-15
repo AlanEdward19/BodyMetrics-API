@@ -48,7 +48,7 @@ public sealed class MembershipTests(MongoContainerFixture mongoFixture, AzuriteC
         var body = await getResponse.Content.ReadFromJsonAsync<AthleteGroupViewModel>(factory.JsonSerializerOptions);
 
         Assert.NotNull(body);
-        Assert.Contains(athlete.Id, body.AthleteIds);
+        Assert.Contains(body.Members, m => m.Id == athlete.Id);
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public sealed class MembershipTests(MongoContainerFixture mongoFixture, AzuriteC
         var body = await getResponse.Content.ReadFromJsonAsync<AthleteGroupViewModel>(factory.JsonSerializerOptions);
 
         Assert.NotNull(body);
-        Assert.Single(body.AthleteIds, id => id == athlete.Id);
+        Assert.Single(body.Members, m => m.Id == athlete.Id);
     }
 
     [Fact]
@@ -152,7 +152,7 @@ public sealed class MembershipTests(MongoContainerFixture mongoFixture, AzuriteC
         var body = await getResponse.Content.ReadFromJsonAsync<AthleteGroupViewModel>(factory.JsonSerializerOptions);
 
         Assert.NotNull(body);
-        Assert.DoesNotContain(athlete.Id, body.AthleteIds);
+        Assert.DoesNotContain(body.Members, m => m.Id == athlete.Id);
     }
 
     [Fact]

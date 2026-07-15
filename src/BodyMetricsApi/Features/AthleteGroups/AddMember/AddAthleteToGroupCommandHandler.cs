@@ -1,4 +1,4 @@
-using BodyMetricsApi.Features.Athletes.Shared.Interfaces;
+using BodyMetricsApi.Features.Athletes.Shared;
 using BodyMetricsApi.Features.AthleteGroups.Shared.Interfaces;
 using BodyMetricsApi.Shared.Authentication;
 using BodyMetricsApi.Shared.Results;
@@ -10,7 +10,7 @@ namespace BodyMetricsApi.Features.AthleteGroups.AddMember;
 
 public sealed class AddAthleteToGroupCommandHandler(
     IAthleteGroupRepository groupRepository,
-    IAthleteRepository athleteRepository,
+    AthleteLocator athleteLocator,
     ICurrentUserService currentUserService,
     IValidator<AddAthleteToGroupCommand> validator)
 {
@@ -28,13 +28,21 @@ public sealed class AddAthleteToGroupCommandHandler(
             return OperationResult.NotFound("Athlete group not found.");
         }
 
-        var athlete = await athleteRepository.GetByIdAsync(command.AthleteId, currentUserService.UserId, cancellationToken);
-        if (athlete is null)
+        if (group.Members.Any(m => m.Id == command.AthleteId))
+        {
+            return OperationResult.Success(StatusCodes.Status204NoContent);
+        }
+
+        // Locates the athlete wherever it currently lives - standalone or embedded in
+        // another group - so adding to this group also acts as "move between groups".
+        var location = await athleteLocator.FindAsync(command.AthleteId, currentUserService.UserId, cancellationToken);
+        if (location is null)
         {
             return OperationResult.NotFound("Athlete not found.");
         }
 
-        group.AddMember(command.AthleteId);
+        await athleteLocator.DetachAsync(location, cancellationToken);
+        group.AddMember(location.Athlete);
         await groupRepository.UpdateAsync(group, cancellationToken);
 
         return OperationResult.Success(StatusCodes.Status204NoContent);

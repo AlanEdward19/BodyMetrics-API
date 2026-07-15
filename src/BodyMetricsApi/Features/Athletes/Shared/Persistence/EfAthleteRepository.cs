@@ -16,58 +16,21 @@ public sealed class EfAthleteRepository(BodyMetricsDbContext dbContext) : IAthle
         string? sector,
         string? category,
         Features.Athletes.Shared.Enums.Phase? phase,
-        IReadOnlyList<string>? groupAthleteIds,
         CancellationToken cancellationToken)
     {
-        var athletes = await dbContext.Athletes
+        var athletes = await GetAllRawAsync(ownerUserId, cancellationToken);
+        var filtered = AthleteFilter.Apply(athletes, fullName, sportId, sector, category, phase);
+        var pagedItems = AthleteFilter.Paginate(filtered, page, pageSize, out var totalCount);
+
+        return new PagedResultDto<Athlete>(pagedItems, totalCount);
+    }
+
+    public async Task<List<Athlete>> GetAllRawAsync(string ownerUserId, CancellationToken cancellationToken)
+    {
+        return await dbContext.Athletes
             .AsNoTracking()
             .Where(athlete => athlete.OwnerUserId == ownerUserId)
-            .OrderBy(athlete => athlete.FullName)
             .ToListAsync(cancellationToken);
-
-        IEnumerable<Athlete> filtered = athletes;
-
-        if (groupAthleteIds is not null)
-        {
-            filtered = filtered.Where(athlete => groupAthleteIds.Contains(athlete.Id));
-        }
-
-        if (!string.IsNullOrWhiteSpace(fullName))
-        {
-            var normalizedFullName = NormalizeSearchTerm(fullName);
-            filtered = filtered.Where(athlete => MatchesFullNameSearch(athlete.FullName, normalizedFullName));
-        }
-
-        if (!string.IsNullOrWhiteSpace(sportId))
-        {
-            var normalizedSportId = sportId.Trim();
-            filtered = filtered.Where(athlete => string.Equals(athlete.SportId, normalizedSportId, StringComparison.Ordinal));
-        }
-
-        if (!string.IsNullOrWhiteSpace(sector))
-        {
-            var normalizedSector = sector.Trim();
-            filtered = filtered.Where(athlete => string.Equals(athlete.Sector, normalizedSector, StringComparison.OrdinalIgnoreCase));
-        }
-
-        if (!string.IsNullOrWhiteSpace(category))
-        {
-            var normalizedCategory = category.Trim();
-            filtered = filtered.Where(athlete => string.Equals(athlete.Category, normalizedCategory, StringComparison.OrdinalIgnoreCase));
-        }
-
-        if (phase.HasValue)
-        {
-            filtered = filtered.Where(athlete => athlete.Phase == phase.Value);
-        }
-
-        var filteredList = filtered.ToList();
-        var pagedItems = filteredList
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToList();
-
-        return new PagedResultDto<Athlete>(pagedItems, filteredList.Count);
     }
 
     public async Task<Athlete?> GetByIdAsync(string id, string ownerUserId, CancellationToken cancellationToken)
@@ -167,31 +130,6 @@ public sealed class EfAthleteRepository(BodyMetricsDbContext dbContext) : IAthle
         dbContext.Athletes.Remove(athlete);
         await dbContext.SaveChangesAsync(cancellationToken);
         return true;
-    }
-
-    private static bool MatchesFullNameSearch(string fullName, string searchTerm)
-    {
-        if (string.IsNullOrWhiteSpace(searchTerm))
-        {
-            return true;
-        }
-
-        var normalizedFullName = NormalizeSearchTerm(fullName);
-        if (normalizedFullName.StartsWith(searchTerm, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        return normalizedFullName
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Any(token => token.StartsWith(searchTerm, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static string NormalizeSearchTerm(string value)
-    {
-        return string.Join(' ', value
-            .Trim()
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries));
     }
 }
 
