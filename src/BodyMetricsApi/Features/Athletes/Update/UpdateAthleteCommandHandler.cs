@@ -1,4 +1,4 @@
-﻿using BodyMetricsApi.Features.Athletes.Shared.Interfaces;
+﻿using BodyMetricsApi.Features.Athletes.Shared;
 using BodyMetricsApi.Features.Athletes.Shared.ValueObjects;
 using BodyMetricsApi.Features.Athletes.Shared.ViewModels;
 using BodyMetricsApi.Features.Sports;
@@ -12,7 +12,7 @@ using FluentValidation;
 namespace BodyMetricsApi.Features.Athletes.Update;
 
 public sealed class UpdateAthleteCommandHandler(
-    IAthleteRepository athleteRepository,
+    AthleteLocator athleteLocator,
     ISportRepository sportRepository,
     IAthletePhotoStorage photoStorage,
     ICurrentUserService currentUserService,
@@ -26,11 +26,13 @@ public sealed class UpdateAthleteCommandHandler(
             return OperationResult<AthleteViewModel>.Validation(validationResult.ToErrorDictionary());
         }
 
-        var athlete = await athleteRepository.GetByIdAsync(command.Id, currentUserService.UserId, cancellationToken);
-        if (athlete is null)
+        var location = await athleteLocator.FindAsync(command.Id, currentUserService.UserId, cancellationToken);
+        if (location is null)
         {
             return OperationResult<AthleteViewModel>.NotFound($"Athlete '{command.Id}' was not found.");
         }
+
+        var athlete = location.Athlete;
 
         var sport = await sportRepository.GetByIdAsync(command.SportId, cancellationToken);
         if (sport is null)
@@ -84,7 +86,7 @@ public sealed class UpdateAthleteCommandHandler(
             command.PhysicalAssessments.ToDomain(),
             profilePhoto);
 
-        await athleteRepository.ReplaceAsync(athlete, cancellationToken);
+        await athleteLocator.SaveAsync(location, cancellationToken);
         var viewModel = await athlete.ToViewModelAsync(photoStorage, cancellationToken);
         return OperationResult<AthleteViewModel>.Success(viewModel);
     }

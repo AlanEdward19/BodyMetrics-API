@@ -7,6 +7,8 @@ using BodyMetricsApi.Features.Athletes.PhysicalAssessments;
 using BodyMetricsApi.Features.Athletes.PhysicalAssessments.Shared.ValueObjects;
 using BodyMetricsApi.Features.Athletes.Shared.Enums;
 using BodyMetricsApi.Features.Athletes.Shared.Interfaces;
+using BodyMetricsApi.Features.AthleteGroups;
+using BodyMetricsApi.Features.AthleteGroups.Shared.Interfaces;
 using BodyMetricsApi.Features.Sports;
 using BodyMetricsApi.Features.Sports.Shared.Interfaces;
 using BodyMetricsApi.Shared.Authentication;
@@ -19,6 +21,7 @@ namespace BodyMetricsApi.Features.Athletes.Import;
 
 public sealed class ImportAthletesSpreadsheetCommandHandler(
     IAthleteRepository athleteRepository,
+    IAthleteGroupRepository groupRepository,
     ISportRepository sportRepository,
     ICurrentUserService currentUserService,
     IValidator<ImportAthletesSpreadsheetCommand> validator)
@@ -59,6 +62,11 @@ public sealed class ImportAthletesSpreadsheetCommandHandler(
     private const string RightWristColumn = "D.Punho";
     private const string RightKneeColumn = "D.Joelho";
     private const string RightAnkleColumn = "D.Tornozelo";
+    private const string TeamColumn = "Time";
+
+    // Team is opt-in: older spreadsheets without this column, or rows that leave it blank,
+    // import exactly as before (athlete stays standalone).
+    private static readonly HashSet<string> OptionalColumns = new(StringComparer.Ordinal) { TeamColumn };
 
     private static readonly CultureInfo PtBrCulture = CultureInfo.GetCultureInfo("pt-BR");
 
@@ -105,7 +113,8 @@ public sealed class ImportAthletesSpreadsheetCommandHandler(
         [LeftCalfCircumferenceColumn] = ["Pantu. E.", "Pantu E.", "Pantu.E.", "Pantu E"],
         [RightWristColumn] = ["D.Punho", "D. Punho", "D Punho"],
         [RightKneeColumn] = ["D.Joelho", "D. Joelho", "D Joelho"],
-        [RightAnkleColumn] = ["D.Tornozelo", "D. Tornozelo", "D Tornozelo"]
+        [RightAnkleColumn] = ["D.Tornozelo", "D. Tornozelo", "D Tornozelo"],
+        [TeamColumn] = ["Time"]
     };
 
     public async Task<OperationResult<AthleteSpreadsheetImportViewModel>> HandleAsync(
@@ -185,13 +194,30 @@ public sealed class ImportAthletesSpreadsheetCommandHandler(
         var updatedAthletes = 0;
         var importedAssessments = 0;
         var replacedAssessments = 0;
+        var createdGroups = 0;
 
-        var athleteGroups = importedRows.GroupBy(row => row.FullName, StringComparer.OrdinalIgnoreCase).ToList();
+        var rowsByAthleteName = importedRows.GroupBy(row => row.FullName, StringComparer.OrdinalIgnoreCase).ToList();
         var existingAthletesByName = await athleteRepository.GetByFullNamesAsync(
-            currentUserService.UserId, athleteGroups.Select(group => group.Key).ToList(), cancellationToken);
+            currentUserService.UserId, rowsByAthleteName.Select(group => group.Key).ToList(), cancellationToken);
+
+        // An athlete already embedded in a group must still be recognized by name during
+        // import - otherwise re-importing the same spreadsheet would create a standalone
+        // duplicate instead of updating the athlete in place.
+        var ownerGroups = await groupRepository.GetAllByOwnerAsync(currentUserService.UserId, cancellationToken);
+        var groupsByName = ownerGroups.ToDictionary(g => NormalizeAthleteName(g.Name), g => g);
+        var groupedAthletesByName = new Dictionary<string, AthleteGroup>(StringComparer.Ordinal);
+        foreach (var group in ownerGroups)
+        {
+            foreach (var member in group.Members)
+            {
+                groupedAthletesByName[NormalizeAthleteName(member.FullName)] = group;
+            }
+        }
 
         // Batches writes so a large spreadsheet does one SaveChanges per batch instead of
-        // one per athlete, while keeping the pending in-memory set bounded.
+        // one per athlete, while keeping the pending in-memory set bounded. Only covers the
+        // common case (no team column involved) - team-bearing rows write through the group
+        // repository directly since embedded-document writes aren't bulk-batchable the same way.
         const int WriteBatchSize = 200;
         var athletesToCreate = new List<Athlete>();
         var athletesToReplace = new List<Athlete>();
@@ -211,10 +237,10 @@ public sealed class ImportAthletesSpreadsheetCommandHandler(
             }
         }
 
-        foreach (var athleteGroup in athleteGroups)
+        foreach (var rowGroup in rowsByAthleteName)
         {
-            var latestRow = athleteGroup.Last();
-            var groupedAssessments = athleteGroup
+            var latestRow = rowGroup.Last();
+            var groupedAssessments = rowGroup
                 .GroupBy(row => row.PhysicalAssessment.AssessmentDate)
                 .Select(group => group.Last().PhysicalAssessment)
                 .OrderBy(assessment => assessment.AssessmentDate)
@@ -222,7 +248,11 @@ public sealed class ImportAthletesSpreadsheetCommandHandler(
 
             importedAssessments += groupedAssessments.Count;
 
-            existingAthletesByName.TryGetValue(latestRow.FullName.Trim().ToUpperInvariant(), out var athlete);
+            var normalizedName = NormalizeAthleteName(latestRow.FullName);
+            existingAthletesByName.TryGetValue(normalizedName, out var standaloneAthlete);
+            groupedAthletesByName.TryGetValue(normalizedName, out var currentGroup);
+            var athlete = standaloneAthlete ?? currentGroup?.Members.FirstOrDefault(m => NormalizeAthleteName(m.FullName) == normalizedName);
+
             if (athlete is null)
             {
                 athlete = Athlete.Create(
@@ -238,48 +268,88 @@ public sealed class ImportAthletesSpreadsheetCommandHandler(
                     groupedAssessments,
                     null);
 
-                athletesToCreate.Add(athlete);
                 createdAthletes++;
+            }
+            else
+            {
+                var importedDates = groupedAssessments
+                    .Select(assessment => assessment.AssessmentDate)
+                    .ToHashSet();
+
+                replacedAssessments +=
+                    athlete.PhysicalAssessments.Count(assessment => importedDates.Contains(assessment.AssessmentDate));
+
+                var mergedAssessments = athlete.PhysicalAssessments
+                    .Where(assessment => !importedDates.Contains(assessment.AssessmentDate))
+                    .Concat(groupedAssessments)
+                    .OrderBy(assessment => assessment.AssessmentDate)
+                    .ToList();
+
+                athlete.Update(
+                    latestRow.FullName,
+                    sport,
+                    latestRow.Sector,
+                    latestRow.Phase,
+                    latestRow.Category,
+                    latestRow.Sex,
+                    latestRow.Ethnicity,
+                    latestRow.BirthDate,
+                    mergedAssessments,
+                    athlete.ProfilePhoto);
+
+                updatedAthletes++;
+            }
+
+            AthleteGroup? targetGroup = null;
+            if (!string.IsNullOrWhiteSpace(latestRow.Team))
+            {
+                var normalizedTeam = NormalizeAthleteName(latestRow.Team);
+                if (!groupsByName.TryGetValue(normalizedTeam, out targetGroup))
+                {
+                    targetGroup = AthleteGroup.Create(currentUserService.UserId, latestRow.Team.Trim());
+                    await groupRepository.AddAsync(targetGroup, cancellationToken);
+                    groupsByName[normalizedTeam] = targetGroup;
+                    createdGroups++;
+                }
+            }
+
+            if (targetGroup is not null)
+            {
+                if (currentGroup is not null && currentGroup.Id != targetGroup.Id)
+                {
+                    currentGroup.RemoveMember(athlete.Id);
+                    await groupRepository.UpdateAsync(currentGroup, cancellationToken);
+                }
+                else if (currentGroup is null && standaloneAthlete is not null)
+                {
+                    await athleteRepository.DeleteAsync(athlete.Id, currentUserService.UserId, cancellationToken);
+                }
+
+                targetGroup.AddMember(athlete);
+                await groupRepository.UpdateAsync(targetGroup, cancellationToken);
+                groupedAthletesByName[normalizedName] = targetGroup;
+            }
+            else if (currentGroup is not null)
+            {
+                // No team on this row - athlete stays in its current group, just with
+                // refreshed profile/assessment data (already applied in place above).
+                await groupRepository.UpdateAsync(currentGroup, cancellationToken);
+            }
+            else
+            {
+                if (standaloneAthlete is null)
+                {
+                    athletesToCreate.Add(athlete);
+                }
+                else
+                {
+                    athletesToReplace.Add(athlete);
+                }
 
                 if (athletesToCreate.Count + athletesToReplace.Count >= WriteBatchSize)
                 {
                     await FlushPendingWritesAsync();
                 }
-
-                continue;
-            }
-
-            var importedDates = groupedAssessments
-                .Select(assessment => assessment.AssessmentDate)
-                .ToHashSet();
-
-            replacedAssessments +=
-                athlete.PhysicalAssessments.Count(assessment => importedDates.Contains(assessment.AssessmentDate));
-
-            var mergedAssessments = athlete.PhysicalAssessments
-                .Where(assessment => !importedDates.Contains(assessment.AssessmentDate))
-                .Concat(groupedAssessments)
-                .OrderBy(assessment => assessment.AssessmentDate)
-                .ToList();
-
-            athlete.Update(
-                latestRow.FullName,
-                sport,
-                latestRow.Sector,
-                latestRow.Phase,
-                latestRow.Category,
-                latestRow.Sex,
-                latestRow.Ethnicity,
-                latestRow.BirthDate,
-                mergedAssessments,
-                athlete.ProfilePhoto);
-
-            athletesToReplace.Add(athlete);
-            updatedAthletes++;
-
-            if (athletesToCreate.Count + athletesToReplace.Count >= WriteBatchSize)
-            {
-                await FlushPendingWritesAsync();
             }
         }
 
@@ -296,8 +366,11 @@ public sealed class ImportAthletesSpreadsheetCommandHandler(
                 replacedAssessments,
                 addedSportSectors,
                 addedSportCategories,
-                sportCreated));
+                sportCreated,
+                createdGroups));
     }
+
+    private static string NormalizeAthleteName(string value) => value.Trim().ToUpperInvariant();
 
     private static List<ImportAthleteSpreadsheetRowDto> ReadRows(Stream stream)
     {
@@ -363,7 +436,11 @@ public sealed class ImportAthletesSpreadsheetCommandHandler(
 
             if (matchedColumn is null)
             {
-                missingColumns.Add(definition.Key);
+                if (!OptionalColumns.Contains(definition.Key))
+                {
+                    missingColumns.Add(definition.Key);
+                }
+
                 continue;
             }
 
@@ -432,6 +509,10 @@ public sealed class ImportAthletesSpreadsheetCommandHandler(
                     GetOptionalDecimal(row, columnIndexes[RightKneeColumn], RightKneeColumn, rowNumber),
                     GetOptionalDecimal(row, columnIndexes[RightAnkleColumn], RightAnkleColumn, rowNumber)));
 
+            var team = columnIndexes.TryGetValue(TeamColumn, out var teamColumnIndex)
+                ? GetOptionalText(row, teamColumnIndex)
+                : null;
+
             return new ImportAthleteSpreadsheetRowDto(
                 rowNumber,
                 fullName,
@@ -441,7 +522,8 @@ public sealed class ImportAthletesSpreadsheetCommandHandler(
                 sex,
                 ethnicity,
                 birthDate,
-                physicalAssessment);
+                physicalAssessment,
+                team);
         }
         catch (ArgumentException exception)
         {
@@ -466,6 +548,12 @@ public sealed class ImportAthletesSpreadsheetCommandHandler(
         }
 
         return text.Trim();
+    }
+
+    private static string? GetOptionalText(IXLRow row, int columnNumber)
+    {
+        var text = GetCellText(row.Cell(columnNumber));
+        return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
     }
 
     private static DateOnly GetRequiredDate(IXLRow row, int columnNumber, string columnName, int rowNumber)

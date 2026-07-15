@@ -5,9 +5,21 @@ using BodyMetricsApi.Features.Athletes.Delete;
 using BodyMetricsApi.Features.Athletes.GetAll;
 using BodyMetricsApi.Features.Athletes.GetById;
 using BodyMetricsApi.Features.Athletes.Import;
+using BodyMetricsApi.Features.Athletes.Shared;
 using BodyMetricsApi.Features.Athletes.Shared.Interfaces;
 using BodyMetricsApi.Features.Athletes.Shared.Persistence;
 using BodyMetricsApi.Features.Athletes.Update;
+using BodyMetricsApi.Features.AthleteGroups.AddMember;
+using BodyMetricsApi.Features.AthleteGroups.Compare;
+using BodyMetricsApi.Features.AthleteGroups.Create;
+using BodyMetricsApi.Features.AthleteGroups.Delete;
+using BodyMetricsApi.Features.AthleteGroups.GetAll;
+using BodyMetricsApi.Features.AthleteGroups.GetById;
+using BodyMetricsApi.Features.AthleteGroups.GetMembers;
+using BodyMetricsApi.Features.AthleteGroups.RemoveMember;
+using BodyMetricsApi.Features.AthleteGroups.Shared.Interfaces;
+using BodyMetricsApi.Features.AthleteGroups.Shared.Persistence;
+using BodyMetricsApi.Features.AthleteGroups.Update;
 using BodyMetricsApi.Features.Sports;
 using BodyMetricsApi.Features.Sports.Create;
 using BodyMetricsApi.Features.Sports.Delete;
@@ -115,6 +127,8 @@ builder.Services.AddScoped<ICurrentUserService, HttpContextCurrentUserService>()
 
 builder.Services.AddScoped<ISportRepository, EfSportRepository>();
 builder.Services.AddScoped<IAthleteRepository, EfAthleteRepository>();
+builder.Services.AddScoped<IAthleteGroupRepository, MongoAthleteGroupRepository>();
+builder.Services.AddScoped<AthleteLocator>();
 
 builder.Services.AddScoped<CreateSportCommandHandler>();
 builder.Services.AddScoped<GetAllSportsQueryHandler>();
@@ -128,6 +142,16 @@ builder.Services.AddScoped<GetAthleteByIdQueryHandler>();
 builder.Services.AddScoped<ImportAthletesSpreadsheetCommandHandler>();
 builder.Services.AddScoped<UpdateAthleteCommandHandler>();
 builder.Services.AddScoped<DeleteAthleteCommandHandler>();
+
+builder.Services.AddScoped<CreateAthleteGroupCommandHandler>();
+builder.Services.AddScoped<GetAllAthleteGroupsQueryHandler>();
+builder.Services.AddScoped<GetAthleteGroupByIdQueryHandler>();
+builder.Services.AddScoped<GetAthleteGroupMembersQueryHandler>();
+builder.Services.AddScoped<UpdateAthleteGroupCommandHandler>();
+builder.Services.AddScoped<DeleteAthleteGroupCommandHandler>();
+builder.Services.AddScoped<AddAthleteToGroupCommandHandler>();
+builder.Services.AddScoped<RemoveAthleteFromGroupCommandHandler>();
+builder.Services.AddScoped<CompareAthleteGroupsQueryHandler>();
 
 var photoStorageProvider = photoStorageStartupOptions.Provider;
 var useInMemoryPhotoStorage = string.Equals(photoStorageProvider, "InMemory", StringComparison.OrdinalIgnoreCase);

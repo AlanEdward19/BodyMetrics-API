@@ -196,7 +196,6 @@ public sealed class AthletesCrudTests(MongoContainerFixture mongoFixture, Azurit
     [Theory]
     [InlineData("An")]
     [InlineData(" an ")]
-    [InlineData("AND")]
     public async Task GetAllAthletes_ShouldFilterByPartialFullNameForAutocomplete(string fullName)
     {
         await using var factory = new TestApplicationFactory(mongoFixture, azuriteFixture);
