@@ -43,7 +43,8 @@ public sealed class AthletesImportTeamColumnTests(MongoContainerFixture mongoFix
 
         var athletesResponse = await client.GetAsync("/api/athletes?page=1&pageSize=10");
         var athletes = await athletesResponse.Content.ReadFromJsonAsync<PagedResponseViewModel<AthleteViewModel>>(factory.JsonSerializerOptions);
-        Assert.Equal(0, athletes!.TotalCount);
+        Assert.Equal(1, athletes!.TotalCount);
+        Assert.Single(athletes.Items, athlete => athlete.FullName == "Team Athlete");
     }
 
     [Fact]

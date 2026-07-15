@@ -65,7 +65,7 @@ public sealed class AthletesController : ControllerBase
 
     [HttpGet]
     [EndpointSummary("Lists athletes.")]
-    [EndpointDescription("Returns a paginated list of athletes that belong to the authenticated user, with optional filters for name, sport, sector, category, phase, and group. By default returns only ungrouped athletes unless groupId or includeGrouped is set.")]
+    [EndpointDescription("Returns a paginated list of athletes that belong to the authenticated user, with optional filters for name, sport, sector, category, phase, and group. By default includes grouped and ungrouped athletes unless includeGrouped=false is set.")]
     [ProducesResponseType(typeof(PagedResponseViewModel<AthleteViewModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -79,12 +79,12 @@ public sealed class AthletesController : ControllerBase
         [FromQuery] string? category,
         [FromQuery] Phase? phase,
         [FromQuery] string? groupId,
-        [FromQuery] bool includeGrouped,
+        [FromQuery] bool? includeGrouped,
         [FromServices] GetAllAthletesQueryHandler handler,
         CancellationToken cancellationToken)
     {
         var response = await handler.HandleAsync(
-            new GetAllAthletesQuery(page == 0 ? 1 : page, pageSize == 0 ? 20 : pageSize, fullName, sportId, sector, category, phase, groupId, includeGrouped),
+            new GetAllAthletesQuery(page == 0 ? 1 : page, pageSize == 0 ? 20 : pageSize, fullName, sportId, sector, category, phase, groupId, includeGrouped ?? true),
             cancellationToken);
 
         return this.ToActionResult(response);

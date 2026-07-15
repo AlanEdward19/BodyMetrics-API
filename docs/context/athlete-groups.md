@@ -23,6 +23,7 @@
 
 - Clients can organize athletes into arbitrary named groups and combine group filters with all existing filters (sport, sector, category, phase, name search).
 - Comparison across groups reuses existing `PhysicalAssessment` value objects — no new formulas introduced.
-- Athlets without a group continue appearing in all existing listings and reports when no `groupId` filter is provided.
+- The default athlete listing now includes both grouped and ungrouped athletes when no `groupId` filter is provided.
+- Clients can still request only ungrouped athletes with `includeGrouped=false`.
 - A group becomes inaccessible if its owner's account is deactivated — consistent with how athletes work today.
 - If `AthleteIds` in a group grows beyond thousands of entries, the in-memory contains filter may degrade. For the expected use case (sports teams) this is not a practical concern.

@@ -67,7 +67,7 @@ public sealed class GroupMembershipMigrationTests(MongoContainerFixture mongoFix
     }
 
     [Fact]
-    public async Task DefaultAthleteList_ShouldExcludeGroupedAthletes()
+    public async Task DefaultAthleteList_ShouldIncludeGroupedAthletes()
     {
         await using var factory = new TestApplicationFactory(mongoFixture, azuriteFixture);
         using var client = factory.CreateAuthenticatedClient("user-default-excl");
@@ -83,12 +83,13 @@ public sealed class GroupMembershipMigrationTests(MongoContainerFixture mongoFix
         var body = await response.Content.ReadFromJsonAsync<PagedResponseViewModel<AthleteViewModel>>(factory.JsonSerializerOptions);
 
         Assert.NotNull(body);
-        Assert.Equal(1, body.TotalCount);
-        Assert.Equal(ungrouped.Id, body.Items[0].Id);
+        Assert.Equal(2, body.TotalCount);
+        Assert.Contains(body.Items, a => a.Id == ungrouped.Id);
+        Assert.Contains(body.Items, a => a.Id == grouped.Id);
     }
 
     [Fact]
-    public async Task IncludeGrouped_ShouldReturnBothUngroupedAndGroupedAthletes()
+    public async Task IncludeGroupedFalse_ShouldExcludeGroupedAthletes()
     {
         await using var factory = new TestApplicationFactory(mongoFixture, azuriteFixture);
         using var client = factory.CreateAuthenticatedClient("user-include-grouped");
@@ -100,13 +101,12 @@ public sealed class GroupMembershipMigrationTests(MongoContainerFixture mongoFix
 
         await client.PostAsync($"/api/athlete-groups/{group.Id}/members/{grouped.Id}", null);
 
-        var response = await client.GetAsync("/api/athletes?page=1&pageSize=20&includeGrouped=true");
+        var response = await client.GetAsync("/api/athletes?page=1&pageSize=20&includeGrouped=false");
         var body = await response.Content.ReadFromJsonAsync<PagedResponseViewModel<AthleteViewModel>>(factory.JsonSerializerOptions);
 
         Assert.NotNull(body);
-        Assert.Equal(2, body.TotalCount);
-        Assert.Contains(body.Items, a => a.Id == ungrouped.Id);
-        Assert.Contains(body.Items, a => a.Id == grouped.Id);
+        Assert.Equal(1, body.TotalCount);
+        Assert.Equal(ungrouped.Id, body.Items[0].Id);
     }
 
     [Fact]

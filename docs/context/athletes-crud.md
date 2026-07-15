@@ -16,6 +16,7 @@
 - In `AthletesController`, resolve handlers per action with `[FromServices]` instead of constructor-wide injection.
 - Persist `OwnerUserId` on the aggregate and scope every read, update, and delete to that owner.
 - Expose paged athlete listings with filters for `FullName`, `SportId`, `Sector`, `Category`, and `Phase`.
+- Keep listing behavior aligned with groups: without `groupId`, `GET /api/athletes` includes grouped and ungrouped athletes by default (`includeGrouped=false` keeps only ungrouped).
 - Treat `FullName` filtering in listings as autocomplete-style partial search, matching the beginning of the full name or any subsequent name token.
 
 ## Consequences
@@ -25,5 +26,4 @@
 - A valid token is mandatory for every athlete endpoint and cross-user access returns `404`.
 - List responses now return metadata (`Page`, `PageSize`, `TotalCount`, `TotalPages`) for clients.
 - Search bars can query `/api/athletes` with short partial names like `An` and still retrieve `Andre`, `Andress`, or `Antonio`.
-
 
