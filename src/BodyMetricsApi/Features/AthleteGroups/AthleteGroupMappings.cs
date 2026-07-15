@@ -9,7 +9,14 @@ public static class AthleteGroupMappings
         return new AthleteGroupViewModel(
             group.Id,
             group.Name,
-            group.Members.Select(member => new AthleteGroupMemberViewModel(member.Id, member.FullName)).ToList(),
+            group.Members
+                .Select(member => new AthleteGroupMemberViewModel(
+                    member.Id,
+                    member.FullName,
+                    member.SportName,
+                    member.Category,
+                    member.Sector))
+                .ToList(),
             group.CreatedAt,
             group.UpdatedAt);
     }

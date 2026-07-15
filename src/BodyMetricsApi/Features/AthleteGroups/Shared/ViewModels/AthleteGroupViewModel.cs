@@ -7,4 +7,9 @@ public sealed record AthleteGroupViewModel(
     DateTime CreatedAt,
     DateTime UpdatedAt);
 
-public sealed record AthleteGroupMemberViewModel(string Id, string FullName);
+public sealed record AthleteGroupMemberViewModel(
+    string Id,
+    string FullName,
+    string SportName,
+    string Category,
+    string Sector);
