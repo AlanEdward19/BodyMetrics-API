@@ -12,4 +12,6 @@ public sealed record GetAllAthletesQuery(
 	string? SportId,
 	string? Sector,
 	string? Category,
-	Phase? Phase) : IQuery<PagedResponseViewModel<AthleteViewModel>>;
+	Phase? Phase,
+	string? GroupId = null,
+	bool IncludeGrouped = true) : IQuery<PagedResponseViewModel<AthleteViewModel>>;

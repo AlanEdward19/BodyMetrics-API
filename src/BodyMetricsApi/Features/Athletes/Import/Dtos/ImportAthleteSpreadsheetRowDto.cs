@@ -12,5 +12,6 @@ internal sealed record ImportAthleteSpreadsheetRowDto(
     Sex Sex,
     Ethnicity Ethnicity,
     DateOnly BirthDate,
-    PhysicalAssessment PhysicalAssessment);
+    PhysicalAssessment PhysicalAssessment,
+    string? Team);
 

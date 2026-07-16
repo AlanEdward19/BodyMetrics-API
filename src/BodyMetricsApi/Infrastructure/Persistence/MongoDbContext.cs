@@ -1,4 +1,5 @@
 ﻿using BodyMetricsApi.Features.Athletes;
+using BodyMetricsApi.Features.AthleteGroups;
 using BodyMetricsApi.Features.Sports;
 using BodyMetricsApi.Infrastructure.Configuration;
 using Microsoft.Extensions.Options;
@@ -20,5 +21,7 @@ public sealed class MongoDbContext
     public IMongoCollection<Sport> Sports => Database.GetCollection<Sport>("sports");
 
     public IMongoCollection<Athlete> Athletes => Database.GetCollection<Athlete>("athletes");
+
+    public IMongoCollection<AthleteGroup> AthleteGroups => Database.GetCollection<AthleteGroup>("athleteGroups");
 }
 

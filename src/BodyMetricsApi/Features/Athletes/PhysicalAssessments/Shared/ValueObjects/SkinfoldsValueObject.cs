@@ -46,9 +46,14 @@ public sealed class SkinfoldsValueObject
 
     private static decimal? EnsurePositiveIfPresent(decimal? value, string propertyName)
     {
-        if (value is not null && value <= 0)
+        if (value is null || value == 0)
         {
-            throw new ArgumentException($"{propertyName} must be greater than zero when provided.", propertyName);
+            return null;
+        }
+
+        if (value < 0)
+        {
+            throw new ArgumentException($"{propertyName} must be greater than or equal to zero when provided.", propertyName);
         }
 
         return value;

@@ -18,6 +18,16 @@ public sealed class MongoDbIndexesHostedService(MongoDbContext mongoDbContext) :
         await mongoDbContext.Athletes.Indexes.CreateManyAsync(
             [athleteOwnerIndex, athleteSportIndex, athleteFullNameIndex],
             cancellationToken: cancellationToken);
+
+        var groupOwnerIndex = new CreateIndexModel<Features.AthleteGroups.AthleteGroup>(
+            Builders<Features.AthleteGroups.AthleteGroup>.IndexKeys.Ascending(x => x.OwnerUserId));
+
+        var groupOwnerNameIndex = new CreateIndexModel<Features.AthleteGroups.AthleteGroup>(
+            Builders<Features.AthleteGroups.AthleteGroup>.IndexKeys.Ascending(x => x.OwnerUserId).Ascending(x => x.Name));
+
+        await mongoDbContext.AthleteGroups.Indexes.CreateManyAsync(
+            [groupOwnerIndex, groupOwnerNameIndex],
+            cancellationToken: cancellationToken);
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

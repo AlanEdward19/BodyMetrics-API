@@ -13,10 +13,12 @@ public static class AthleteMappings
     {
         return requests.Select(request => new PhysicalAssessment(
                 request.AssessmentDate,
-                new GeneralMeasurementsValueObject(
-                    request.GeneralMeasurements.WeightKg,
-                    request.GeneralMeasurements.HeightCm,
-                    request.GeneralMeasurements.SittingHeightCm),
+                request.GeneralMeasurements is null
+                    ? new GeneralMeasurementsValueObject()
+                    : new GeneralMeasurementsValueObject(
+                        request.GeneralMeasurements.WeightKg,
+                        request.GeneralMeasurements.HeightCm,
+                        request.GeneralMeasurements.SittingHeightCm),
                 request.Skinfolds is null
                     ? new SkinfoldsValueObject()
                     : new SkinfoldsValueObject(

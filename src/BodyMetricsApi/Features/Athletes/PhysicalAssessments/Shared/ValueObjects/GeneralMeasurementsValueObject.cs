@@ -2,28 +2,33 @@ namespace BodyMetricsApi.Features.Athletes.PhysicalAssessments.Shared.ValueObjec
 
 public sealed class GeneralMeasurementsValueObject
 {
-    public decimal WeightKg { get; private set; }
+    public decimal? WeightKg { get; private set; }
 
-    public decimal HeightCm { get; private set; }
+    public decimal? HeightCm { get; private set; }
 
-    public decimal SittingHeightCm { get; private set; }
+    public decimal? SittingHeightCm { get; private set; }
 
     public GeneralMeasurementsValueObject()
     {
     }
 
-    public GeneralMeasurementsValueObject(decimal weightKg, decimal heightCm, decimal sittingHeightCm)
+    public GeneralMeasurementsValueObject(decimal? weightKg, decimal? heightCm, decimal? sittingHeightCm)
     {
-        WeightKg = EnsurePositive(weightKg, nameof(WeightKg));
-        HeightCm = EnsurePositive(heightCm, nameof(HeightCm));
-        SittingHeightCm = EnsurePositive(sittingHeightCm, nameof(SittingHeightCm));
+        WeightKg = EnsurePositiveIfPresent(weightKg, nameof(WeightKg));
+        HeightCm = EnsurePositiveIfPresent(heightCm, nameof(HeightCm));
+        SittingHeightCm = EnsurePositiveIfPresent(sittingHeightCm, nameof(SittingHeightCm));
     }
 
-    private static decimal EnsurePositive(decimal value, string propertyName)
+    private static decimal? EnsurePositiveIfPresent(decimal? value, string propertyName)
     {
-        if (value <= 0)
+        if (value is null || value == 0)
         {
-            throw new ArgumentException($"{propertyName} must be greater than zero.", propertyName);
+            return null;
+        }
+
+        if (value < 0)
+        {
+            throw new ArgumentException($"{propertyName} must be greater than or equal to zero when provided.", propertyName);
         }
 
         return value;
