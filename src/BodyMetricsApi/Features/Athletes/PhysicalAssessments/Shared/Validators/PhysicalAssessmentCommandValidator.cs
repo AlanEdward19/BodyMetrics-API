@@ -7,7 +7,7 @@ public sealed class PhysicalAssessmentCommandValidator : AbstractValidator<Physi
 {
     public PhysicalAssessmentCommandValidator()
     {
-        RuleFor(assessment => assessment.GeneralMeasurements).SetValidator(new GeneralMeasurementsCommandValidator());
+        RuleFor(assessment => assessment.GeneralMeasurements).SetValidator(new GeneralMeasurementsCommandValidator()!);
         RuleFor(assessment => assessment.Skinfolds).SetValidator(new SkinfoldsCommandValidator()!);
         RuleFor(assessment => assessment.Circumferences).SetValidator(new CircumferencesCommandValidator()!);
     }

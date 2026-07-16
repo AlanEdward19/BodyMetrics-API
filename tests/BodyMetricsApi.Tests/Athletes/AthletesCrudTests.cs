@@ -171,6 +171,70 @@ public sealed class AthletesCrudTests(MongoContainerFixture mongoFixture, Azurit
     }
 
     [Fact]
+    public async Task CreateAthlete_ShouldAcceptNullPhysicalAssessmentMeasurements()
+    {
+        await using var factory = new TestApplicationFactory(mongoFixture, azuriteFixture);
+        using var client = factory.CreateAuthenticatedClient();
+        var sport = await CreateSportAsync(client, factory, "Rowing");
+
+        var request = BuildCreateAthleteCommand(sport.Id, "Adult", "A") with
+        {
+            PhysicalAssessments =
+            [
+                new PhysicalAssessmentCommand(
+                    new DateOnly(2026, 01, 01),
+                    new GeneralMeasurementsCommand(null, null, null),
+                    new SkinfoldsCommand(null, null, null, null, null, null, null, null, null, null, null),
+                    new CircumferencesCommand(null, null, null, null, null, null, null, null, null, null, null, null, null))
+            ]
+        };
+
+        var response = await client.PostAsJsonAsync("/api/athletes", request, factory.JsonSerializerOptions);
+        var body = await response.Content.ReadFromJsonAsync<AthleteViewModel>(factory.JsonSerializerOptions);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Single(body.PhysicalAssessments);
+        Assert.Null(body.PhysicalAssessments[0].GeneralMeasurements.WeightKg);
+        Assert.Null(body.PhysicalAssessments[0].GeneralMeasurements.HeightCm);
+        Assert.Null(body.PhysicalAssessments[0].GeneralMeasurements.SittingHeightCm);
+        Assert.Null(body.PhysicalAssessments[0].Skinfolds.ThoraxMm);
+        Assert.Null(body.PhysicalAssessments[0].Circumferences.HipCm);
+    }
+
+    [Fact]
+    public async Task CreateAthlete_ShouldTreatZeroPhysicalAssessmentMeasurementsAsNull()
+    {
+        await using var factory = new TestApplicationFactory(mongoFixture, azuriteFixture);
+        using var client = factory.CreateAuthenticatedClient();
+        var sport = await CreateSportAsync(client, factory, "Canoeing");
+
+        var request = BuildCreateAthleteCommand(sport.Id, "Adult", "A") with
+        {
+            PhysicalAssessments =
+            [
+                new PhysicalAssessmentCommand(
+                    new DateOnly(2026, 01, 01),
+                    new GeneralMeasurementsCommand(0m, 0m, 0m),
+                    new SkinfoldsCommand(0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m),
+                    new CircumferencesCommand(0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m))
+            ]
+        };
+
+        var response = await client.PostAsJsonAsync("/api/athletes", request, factory.JsonSerializerOptions);
+        var body = await response.Content.ReadFromJsonAsync<AthleteViewModel>(factory.JsonSerializerOptions);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Single(body.PhysicalAssessments);
+        Assert.Null(body.PhysicalAssessments[0].GeneralMeasurements.WeightKg);
+        Assert.Null(body.PhysicalAssessments[0].GeneralMeasurements.HeightCm);
+        Assert.Null(body.PhysicalAssessments[0].GeneralMeasurements.SittingHeightCm);
+        Assert.Null(body.PhysicalAssessments[0].Skinfolds.ThoraxMm);
+        Assert.Null(body.PhysicalAssessments[0].Circumferences.HipCm);
+    }
+
+    [Fact]
     public async Task GetAllAthletes_ShouldReturnOnlyOwnerItemsWithPaginationAndFilters()
     {
         await using var factory = new TestApplicationFactory(mongoFixture, azuriteFixture);
