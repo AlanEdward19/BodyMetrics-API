@@ -40,6 +40,7 @@ public sealed record GroupCircumferencesAggregateViewModel(
     MetricAggregateViewModel RightArmCm,
     MetricAggregateViewModel LeftArmCm,
     MetricAggregateViewModel WaistCm,
+    MetricAggregateViewModel AbdominalCm,
     MetricAggregateViewModel HipCm,
     MetricAggregateViewModel RightMidThighCm,
     MetricAggregateViewModel LeftMidThighCm,

@@ -6,6 +6,7 @@ public sealed record CircumferencesCommand(
     decimal? RightArmCm,
     decimal? LeftArmCm,
     decimal? WaistCm,
+    decimal? AbdominalCm,
     decimal? HipCm,
     decimal? RightMidThighCm,
     decimal? LeftMidThighCm,

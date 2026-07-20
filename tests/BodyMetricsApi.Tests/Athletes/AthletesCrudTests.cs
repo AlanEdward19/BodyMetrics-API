@@ -185,7 +185,7 @@ public sealed class AthletesCrudTests(MongoContainerFixture mongoFixture, Azurit
                     new DateOnly(2026, 01, 01),
                     new GeneralMeasurementsCommand(null, null, null),
                     new SkinfoldsCommand(null, null, null, null, null, null, null, null, null, null, null),
-                    new CircumferencesCommand(null, null, null, null, null, null, null, null, null, null, null, null, null))
+                    new CircumferencesCommand(null, null, null, null, null, null, null, null, null, null, null, null, null, null))
             ]
         };
 
@@ -217,7 +217,7 @@ public sealed class AthletesCrudTests(MongoContainerFixture mongoFixture, Azurit
                     new DateOnly(2026, 01, 01),
                     new GeneralMeasurementsCommand(0m, 0m, 0m),
                     new SkinfoldsCommand(0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m),
-                    new CircumferencesCommand(0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m))
+                    new CircumferencesCommand(0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m))
             ]
         };
 
@@ -331,7 +331,7 @@ public sealed class AthletesCrudTests(MongoContainerFixture mongoFixture, Azurit
                     new DateOnly(2026, 01, 01),
                     new GeneralMeasurementsCommand(70.4m, 177.2m, 92.5m),
                     new SkinfoldsCommand(10.0m, 10.5m, null, null, null, null, 12.1m, null, null, null, null),
-                    new CircumferencesCommand(108.0m, 94.0m, null, null, 75.0m, 96.0m, null, null, 37.0m, 36.5m, null, null, null))
+                    new CircumferencesCommand(108.0m, 94.0m, null, null, 75.0m, null, 96.0m, null, null, 37.0m, 36.5m, null, null, null))
             ],
             includePhoto
                 ? new ProfilePhotoUploadCommand("avatar.png", "image/png", Convert.ToBase64String([1, 2, 3, 4]))
@@ -355,7 +355,7 @@ public sealed class AthletesCrudTests(MongoContainerFixture mongoFixture, Azurit
                     new DateOnly(2026, 01, 01),
                     new GeneralMeasurementsCommand(70.4m, 177.2m, 92.5m),
                     new SkinfoldsCommand(10.0m, 10.5m, null, null, null, null, 12.1m, null, null, null, null),
-                    new CircumferencesCommand(108.0m, 94.0m, null, null, 75.0m, 96.0m, null, null, 37.0m, 36.5m, null, null, null))
+                    new CircumferencesCommand(108.0m, 94.0m, null, null, 75.0m, null, 96.0m, null, null, 37.0m, 36.5m, null, null, null))
             ],
             includePhoto
                 ? new ProfilePhotoUploadCommand("avatar.png", "image/png", Convert.ToBase64String([1, 2, 3, 4]))

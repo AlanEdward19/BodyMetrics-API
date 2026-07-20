@@ -54,6 +54,7 @@ public sealed class ImportAthletesSpreadsheetCommandHandler(
     private const string RightArmColumn = "C.Braço D.";
     private const string LeftArmColumn = "C.Braço E.";
     private const string WaistColumn = "C.Cintura";
+    private const string AbdominalCircumferenceColumn = "C.Abdominal";
     private const string HipColumn = "C.Quadril";
     private const string RightMidThighColumn = "C. Medial D";
     private const string LeftMidThighColumn = "C.Medial E";
@@ -66,7 +67,8 @@ public sealed class ImportAthletesSpreadsheetCommandHandler(
 
     // Team is opt-in: older spreadsheets without this column, or rows that leave it blank,
     // import exactly as before (athlete stays standalone).
-    private static readonly HashSet<string> OptionalColumns = new(StringComparer.Ordinal) { TeamColumn };
+    private static readonly HashSet<string> OptionalColumns =
+        new(StringComparer.Ordinal) { TeamColumn, AbdominalCircumferenceColumn };
 
     private static readonly CultureInfo PtBrCulture = CultureInfo.GetCultureInfo("pt-BR");
 
@@ -106,6 +108,7 @@ public sealed class ImportAthletesSpreadsheetCommandHandler(
         [RightArmColumn] = ["C.Braço D.", "C.Braco D.", "C. Braço D.", "C. Braco D.", "C Braço D", "C Braco D"],
         [LeftArmColumn] = ["C.Braço E.", "C.Braco E.", "C. Braço E.", "C. Braco E.", "C Braço E", "C Braco E"],
         [WaistColumn] = ["C.Cintura", "C. Cintura", "C Cintura"],
+        [AbdominalCircumferenceColumn] = ["C.Abdominal", "C. Abdominal", "C Abdominal"],
         [HipColumn] = ["C.Quadril", "C. Quadril", "C Quadril"],
         [RightMidThighColumn] = ["C. Medial D", "C.Medial D", "C Medial D"],
         [LeftMidThighColumn] = ["C.Medial E", "C. Medial E", "C Medial E", "C. Medial E."],
@@ -498,6 +501,9 @@ public sealed class ImportAthletesSpreadsheetCommandHandler(
                     GetOptionalDecimal(row, columnIndexes[RightArmColumn], RightArmColumn, rowNumber),
                     GetOptionalDecimal(row, columnIndexes[LeftArmColumn], LeftArmColumn, rowNumber),
                     GetOptionalDecimal(row, columnIndexes[WaistColumn], WaistColumn, rowNumber),
+                    columnIndexes.TryGetValue(AbdominalCircumferenceColumn, out var abdominalCircumferenceIndex)
+                        ? GetOptionalDecimal(row, abdominalCircumferenceIndex, AbdominalCircumferenceColumn, rowNumber)
+                        : null,
                     GetOptionalDecimal(row, columnIndexes[HipColumn], HipColumn, rowNumber),
                     GetOptionalDecimal(row, columnIndexes[RightMidThighColumn], RightMidThighColumn, rowNumber),
                     GetOptionalDecimal(row, columnIndexes[LeftMidThighColumn], LeftMidThighColumn, rowNumber),
