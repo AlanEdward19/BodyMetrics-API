@@ -7,6 +7,7 @@ public sealed class CircumferencesValueObject
     public decimal? RightArmCm { get; private set; }
     public decimal? LeftArmCm { get; private set; }
     public decimal? WaistCm { get; private set; }
+    public decimal? AbdominalCm { get; private set; }
     public decimal? HipCm { get; private set; }
     public decimal? RightMidThighCm { get; private set; }
     public decimal? LeftMidThighCm { get; private set; }
@@ -26,6 +27,7 @@ public sealed class CircumferencesValueObject
         decimal? rightArmCm,
         decimal? leftArmCm,
         decimal? waistCm,
+        decimal? abdominalCm,
         decimal? hipCm,
         decimal? rightMidThighCm,
         decimal? leftMidThighCm,
@@ -40,6 +42,7 @@ public sealed class CircumferencesValueObject
         RightArmCm = EnsurePositiveIfPresent(rightArmCm, nameof(RightArmCm));
         LeftArmCm = EnsurePositiveIfPresent(leftArmCm, nameof(LeftArmCm));
         WaistCm = EnsurePositiveIfPresent(waistCm, nameof(WaistCm));
+        AbdominalCm = EnsurePositiveIfPresent(abdominalCm, nameof(AbdominalCm));
         HipCm = EnsurePositiveIfPresent(hipCm, nameof(HipCm));
         RightMidThighCm = EnsurePositiveIfPresent(rightMidThighCm, nameof(RightMidThighCm));
         LeftMidThighCm = EnsurePositiveIfPresent(leftMidThighCm, nameof(LeftMidThighCm));

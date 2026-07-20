@@ -89,6 +89,7 @@ public sealed class CompareAthleteGroupsQueryHandler(
             RightArmCm: Aggregate(assessments.Select(a => a.Circumferences.RightArmCm).ToList()),
             LeftArmCm: Aggregate(assessments.Select(a => a.Circumferences.LeftArmCm).ToList()),
             WaistCm: Aggregate(assessments.Select(a => a.Circumferences.WaistCm).ToList()),
+            AbdominalCm: Aggregate(assessments.Select(a => a.Circumferences.AbdominalCm).ToList()),
             HipCm: Aggregate(assessments.Select(a => a.Circumferences.HipCm).ToList()),
             RightMidThighCm: Aggregate(assessments.Select(a => a.Circumferences.RightMidThighCm).ToList()),
             LeftMidThighCm: Aggregate(assessments.Select(a => a.Circumferences.LeftMidThighCm).ToList()),
