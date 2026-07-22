@@ -14,5 +14,6 @@ public sealed record CircumferencesViewModel(
     decimal? LeftCalfCm,
     decimal? RightWristCm,
     decimal? RightKneeCm,
-    decimal? RightAnkleCm);
+    decimal? RightAnkleCm,
+    decimal? EnvergaduraCm = null);
 

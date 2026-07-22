@@ -21,6 +21,7 @@ public sealed class CircumferencesCommandValidator : AbstractValidator<Circumfer
         RuleFor(value => value.RightWristCm).GreaterThan(0).When(value => value.RightWristCm.HasValue && value.RightWristCm.Value != 0);
         RuleFor(value => value.RightKneeCm).GreaterThan(0).When(value => value.RightKneeCm.HasValue && value.RightKneeCm.Value != 0);
         RuleFor(value => value.RightAnkleCm).GreaterThan(0).When(value => value.RightAnkleCm.HasValue && value.RightAnkleCm.Value != 0);
+        RuleFor(value => value.EnvergaduraCm).GreaterThan(0).When(value => value.EnvergaduraCm.HasValue && value.EnvergaduraCm.Value != 0);
     }
 }
 

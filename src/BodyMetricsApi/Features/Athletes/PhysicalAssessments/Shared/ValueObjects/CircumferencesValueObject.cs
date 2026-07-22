@@ -16,6 +16,7 @@ public sealed class CircumferencesValueObject
     public decimal? RightWristCm { get; private set; }
     public decimal? RightKneeCm { get; private set; }
     public decimal? RightAnkleCm { get; private set; }
+    public decimal? EnvergaduraCm { get; private set; }
 
     public CircumferencesValueObject()
     {
@@ -35,7 +36,8 @@ public sealed class CircumferencesValueObject
         decimal? leftCalfCm,
         decimal? rightWristCm,
         decimal? rightKneeCm,
-        decimal? rightAnkleCm)
+        decimal? rightAnkleCm,
+        decimal? envergaduraCm = null)
     {
         ShoulderCm = EnsurePositiveIfPresent(shoulderCm, nameof(ShoulderCm));
         ChestCm = EnsurePositiveIfPresent(chestCm, nameof(ChestCm));
@@ -51,6 +53,7 @@ public sealed class CircumferencesValueObject
         RightWristCm = EnsurePositiveIfPresent(rightWristCm, nameof(RightWristCm));
         RightKneeCm = EnsurePositiveIfPresent(rightKneeCm, nameof(RightKneeCm));
         RightAnkleCm = EnsurePositiveIfPresent(rightAnkleCm, nameof(RightAnkleCm));
+        EnvergaduraCm = EnsurePositiveIfPresent(envergaduraCm, nameof(EnvergaduraCm));
     }
 
     private static decimal? EnsurePositiveIfPresent(decimal? value, string propertyName)
