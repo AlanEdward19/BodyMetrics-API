@@ -49,7 +49,8 @@ public static class AthleteMappings
                         request.Circumferences.LeftCalfCm,
                         request.Circumferences.RightWristCm,
                         request.Circumferences.RightKneeCm,
-                        request.Circumferences.RightAnkleCm)))
+                        request.Circumferences.RightAnkleCm,
+                        request.Circumferences.EnvergaduraCm)))
             .ToList();
     }
 
@@ -108,7 +109,8 @@ public static class AthleteMappings
                         assessment.Circumferences.LeftCalfCm,
                         assessment.Circumferences.RightWristCm,
                         assessment.Circumferences.RightKneeCm,
-                        assessment.Circumferences.RightAnkleCm)))
+                        assessment.Circumferences.RightAnkleCm,
+                        assessment.Circumferences.EnvergaduraCm)))
                 .ToList());
     }
 }
